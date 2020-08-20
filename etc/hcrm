@@ -1,0 +1,59 @@
+#! /bin/bash
+#
+# hcrm	start/stop manager
+#
+# Authors: hweiwei, 2020/05/15, <ww.he@yamutech.com>
+#
+# chkconfig: 345 13 87
+# description: hcrm start/stop manager
+#
+# processname: /usr/bin/hcrm
+# pidfile: /var/hcrm/hcrm.pid
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+RETVAR=0
+PROG="hcrm"
+pidfile=/var/hcrm/hcrm.pid
+HCRM_BIN=/usr/bin/hcrm
+
+case "$1" in
+	start)
+		echo "Starting hcrm: "
+			daemon --pidfile=$pidfile ${HCRM_BIN} start 
+			RETVAR=$?
+		if [ $RETVAR -ne 0 ]
+		then
+			exit 6
+		fi
+		
+		;;
+
+	stop)
+		echo -n $"Shutting down $PROG: "
+		if [ -f $pidfile ]
+		then
+            ${HCRM_BIN} stop
+		else
+			killall -9 hcrm
+			RETVAR=$?
+		fi
+		;;
+
+	restart|reload|force-reload)
+        ${HCRM_BIN} restart
+		RETVAR=$?
+		;;
+
+	status)
+		status $HCRM_BIN
+		RETVAR=$?
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|force-reload|status}"
+		exit 2
+		;;
+esac
+
+exit $RETVAR

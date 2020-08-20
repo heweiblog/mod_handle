@@ -1,0 +1,14 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+
+output = os.popen('pip list')
+res = output.read()
+lib = ['click','PyMySQL','daemonocle','Flask','Flask-SQLAlchemy','SQLAlchemy','tld','aiohttp','IPy','dnspython','requests','Flask-BasicAuth']
+
+for i in lib:
+	if i not in res:
+		os.system('pip install {}'.format(i))
+
+

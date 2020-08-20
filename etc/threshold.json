@@ -1,0 +1,37 @@
+{
+    "amplificationattack": {
+		"maxanswerlen": 1024,
+        "qpsthreshold": 1000
+    },
+    "backendthreshold": {
+        "ipv4nohitthreshold": 1000,
+        "ipv6nohitthreshold": 1000,
+        "updatethreshold": 1000
+    },
+    "creditdname": {
+        "totalthreshold": 1000
+    },
+    "icmpflood": {
+        "ipv4totalthreshold": 100,
+        "ipv6totalthreshold": 100
+    },
+    "ipthreshold": {
+        "defaultthreshold": 1000
+    },
+    "replythreshold": {
+        "replythreshold": 1000
+    },
+    "tcpflood": {
+        "ipv4no53threshold": 100,
+        "ipv4totalthreshold": 100,
+        "ipv6no53threshold": 100,
+        "ipv6totalthreshold": 100
+    },
+    "udpflood": {
+        "ipv4no53threshold": 100,
+        "ipv6no53threshold": 100
+    },
+	"graydomainaccesscontrol": {
+		"odds": 8
+	}
+}

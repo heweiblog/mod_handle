@@ -1,0 +1,32 @@
+{
+	"useripwhitelist": {
+        "switch": "disable"
+	},
+	"ipthreshold": {
+        "switch": "disable"
+	}, 
+	"handlethreshold": {
+        "switch": "disable"
+	}, 
+	"srcipaccesscontrol": {
+        "switch": "disable"
+	},
+	"handleaccesscontrol": {
+        "switch": "disable"
+	},
+	"businessservice": {
+        "switch": "disable"
+	},
+	"xforce":{
+        "switch": "disable"
+	},
+	"cachesmartupdate": {
+        "switch": "disable"
+	},
+	"cacheprefetch":{
+        "switch": "disable"
+	},
+	"backendmeter": {
+        "switch": "disable"
+	}
+}

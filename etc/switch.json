@@ -1,0 +1,88 @@
+{
+    "iptables": {
+        "switch": "disable"
+    },
+    "dnsipfragment": {
+        "switch": "disable"
+    },
+    "ipfragment": {
+        "switch": "disable"
+    },
+    "icmpflood": {
+        "switch": "disable"
+    },
+    "tcpflood": {
+        "switch": "disable"
+    },
+    "creditdname": {
+        "switch": "disable"
+    },
+    "ipthreshold": {
+        "switch": "disable"
+    },
+    "domainthreshold": {
+        "switch": "disable"
+    },
+    "ipdomainthreshold": {
+        "switch": "disable"
+    },
+    "poisonprotect": {
+        "switch": "disable",
+        "x20": "disable",
+        "linkage": "disable"
+    },
+    "amplificationattack": {
+        "switch": "disable"
+    },
+    "useripwhitelist": {
+        "switch": "disable"
+    },
+    "serviceipwhitelist": {
+        "switch": "disable"
+    },
+    "srcipaccesscontrol": {
+        "switch": "disable"
+    },
+    "domainaccesscontrol": {
+        "switch": "disable"
+    },
+    "ipdomainaccesscontrol": {
+        "switch": "disable"
+    },
+    "domainqtypeaccesscontrol": {
+        "switch": "disable"
+    },
+    "qtypeaccesscontrol": {
+        "switch": "disable"
+    },
+    "ipqtypeaccesscontrol": {
+        "switch": "disable"
+    },
+    "graydomainaccesscontrol": {
+        "switch": "disable"
+    },
+    "importdnameprotect": {
+        "switch": "disable"
+    },
+    "spreadecho": {
+        "switch": "disable"
+    },
+    "dts": {
+        "switch": "disable"
+    },
+    "expiredactivate": {
+        "switch": "disable"
+    },
+    "cachedisable": {
+        "switch": "disable"
+    },
+    "cachesync": {
+        "switch": "disable"
+    },
+    "minimalresponses": {
+        "switch": "disable"
+    },
+    "smartupdate": {
+        "switch": "disable"
+    }
+}

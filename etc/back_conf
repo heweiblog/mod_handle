@@ -1,0 +1,114 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+#备份配置文件 并添加新加的配置
+
+import os,time,shutil,ConfigParser,shutil
+
+crm_file = '/etc/hcrm.ini'
+
+def get_str(s):
+	l = s.split(' ')
+	ss = ''
+	for i in l:
+		ss += i
+	return ss
+		
+def get_zhushi_dict(fi):
+	dic = {}
+	with open(fi,'r') as f:
+		l = f.readlines()
+		for i in range(len(l)):
+			if l[i] == '\n':
+				continue
+			if ';' in l[i]:
+				continue
+			d = ''
+			if i-1 >= 0 and ';' in l[i-1]:
+				d = l[i-1]
+				if i-2 >= 0 and ';' in l[i-2]:
+					d = l[i-2] + l[i-1]
+					if i-3 >= 0 and ';' in l[i-3]:
+						d = l[i-3] + l[i-2] + l[i-1]
+			if d != '':
+				k = get_str(l[i])
+				dic[k] = d
+	return dic
+	
+def cmp_conf(old_file,new_file):
+	try:
+		if os.path.exists(old_file) is False or os.path.exists(new_file) is False:
+			return False
+		
+		old_dic = get_zhushi_dict(old_file)
+		new_dic = get_zhushi_dict(new_file)
+		
+		old = ConfigParser.ConfigParser()
+		new = ConfigParser.ConfigParser()
+
+		old.read(old_file)
+		new.read(new_file)
+
+		new_sections = new.sections()
+		old_sections = old.sections()
+
+		for s in new_sections:
+			if s in old_sections:
+				new_ops = new.options(s)
+				old_ops = old.options(s)
+				if new_ops != old_ops:
+					for i in new_ops:
+						if i not in old_ops:
+							old.set(s,i,new.get(s,i))
+					for i in old_ops:
+						if i not in new_ops:
+							old.remove_option(s,i)
+			else:
+				old.add_section(s)
+				for i in new.options(s):
+					old.set(s,i,new.get(s,i))
+
+		for s in old_sections:
+			if s in new_sections:
+				new_ops = new.options(s)
+				old_ops = old.options(s)
+				if new_ops != old_ops:
+					for i in old_ops:
+						if i not in new_ops:
+							old.remove_option(s,i)
+			else:
+				old.remove_section(s)
+
+		with open(old_file,'w') as f:
+			old.write(f)
+		
+		with open(old_file,'r') as f:
+			_tmp = f.readlines()
+		
+		with open(new_file,'w') as f:
+			for s in _tmp:
+				if s == '\n':
+					f.write('\n')
+					continue
+				k = get_str(s)
+				if k in old_dic:
+					f.write(old_dic[k])
+				elif k in new_dic:
+					f.write(new_dic[k])
+				f.write(s)
+        
+		os.remove(old_file)
+
+		return True
+		
+
+	except Exception as e:
+		print('check conf: '+str(e))
+
+	return False
+
+
+if __name__ == '__main__':
+	if cmp_conf(crm_file+'.old',crm_file):
+		print('crm conf check success!!!')
+

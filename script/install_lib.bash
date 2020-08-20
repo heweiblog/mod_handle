@@ -1,0 +1,10 @@
+pip3 install click
+pip3 install pymysql 
+pip3 install daemonocle
+pip3 install flask
+pip3 install flask_sqlalchemy
+pip3 install sqlalchemy
+pip3 install tld
+pip3 install aiohttp
+pip3 install IPy
+pip3 install dnspython

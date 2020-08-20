@@ -1,0 +1,32 @@
+[11358] 2020/03/05 21:28:20.011670 [INF] Starting nats-server version 2.1.4
+[11358] 2020/03/05 21:28:20.011744 [DBG] Go build version go1.13.7
+[11358] 2020/03/05 21:28:20.011750 [INF] Git commit [fb009af]
+[11358] 2020/03/05 21:28:20.011971 [INF] Listening for client connections on 0.0.0.0:4222
+[11358] 2020/03/05 21:28:20.011982 [INF] Server id is NDL2LX5SZNBQW2IERA4JIVXEML25RECTZHMH5VC7FBD67YSWHGBK3ZUC
+[11358] 2020/03/05 21:28:20.011986 [INF] Server is ready
+[11358] 2020/03/05 21:28:20.011996 [DBG] Get non local IPs for "0.0.0.0"
+[11358] 2020/03/05 21:28:20.012373 [DBG]  ip=192.168.3.66
+[11358] 2020/03/05 21:28:20.012412 [DBG]  ip=192.168.5.41
+[11358] 2020/03/05 21:28:27.637004 [DBG] 127.0.0.1:34995 - cid:1 - Client connection created
+[11358] 2020/03/05 21:28:27.640389 [DBG] 127.0.0.1:34995 - cid:1 - Auto-unsubscribe limit of 10 reached for sid '2'
+[11358] 2020/03/05 21:28:28.643274 [DBG] 127.0.0.1:34995 - cid:1 - Client connection closed
+[11358] 2020/03/05 21:28:33.108032 [DBG] 127.0.0.1:35002 - cid:2 - Client connection created
+[11358] 2020/03/05 21:28:33.633729 [DBG] 127.0.0.1:35002 - cid:2 - Client connection closed
+[11358] 2020/03/05 21:28:56.257332 [DBG] Trapped "interrupt" signal
+[11358] 2020/03/05 21:28:56.257372 [INF] Initiating Shutdown...
+[11358] 2020/03/05 21:28:56.257447 [INF] Server Exiting..
+[11587] 2020/03/05 21:29:50.853851 [INF] Starting nats-server version 2.1.4
+[11587] 2020/03/05 21:29:50.853924 [DBG] Go build version go1.13.7
+[11587] 2020/03/05 21:29:50.853931 [INF] Git commit [fb009af]
+[11587] 2020/03/05 21:29:50.854113 [INF] Listening for client connections on 0.0.0.0:4222
+[11587] 2020/03/05 21:29:50.854127 [INF] Server id is NBKACMSHIXJP5PWDVGI2FA5TS77OCDDBTL3ITVFGWLNBGIH5QP4GA4PN
+[11587] 2020/03/05 21:29:50.854133 [INF] Server is ready
+[11587] 2020/03/05 21:29:50.854143 [DBG] Get non local IPs for "0.0.0.0"
+[11587] 2020/03/05 21:29:50.854502 [DBG]  ip=192.168.3.66
+[11587] 2020/03/05 21:29:50.854543 [DBG]  ip=192.168.5.41
+[11587] 2020/03/05 21:29:56.631164 [DBG] 127.0.0.1:35088 - cid:1 - Client connection created
+[11587] 2020/03/05 21:29:56.634038 [DBG] 127.0.0.1:35088 - cid:1 - Auto-unsubscribe limit of 10 reached for sid '2'
+[11587] 2020/03/05 21:29:57.673158 [DBG] 127.0.0.1:35088 - cid:1 - Client connection closed
+[11587] 2020/03/05 21:30:00.748627 [DBG] Trapped "interrupt" signal
+[11587] 2020/03/05 21:30:00.748653 [INF] Initiating Shutdown...
+[11587] 2020/03/05 21:30:00.748818 [INF] Server Exiting..

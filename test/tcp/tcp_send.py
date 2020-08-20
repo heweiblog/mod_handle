@@ -1,0 +1,49 @@
+import socket,time
+
+#socket.setdefaulttimeout(2)
+
+def test():
+	try:
+		tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		tcp_socket.settimeout(3)
+		dest_addr = ('192.168.6.145', 33331)
+		#dest_addr = ('192.168.5.41', 33331)
+		tcp_socket.connect(dest_addr)
+		print('connect success!!')
+		ver = (0x01).to_bytes(1, byteorder='big')
+		cid = (0x01).to_bytes(2, byteorder='big')
+		dt = (0x01).to_bytes(1, byteorder='big')
+		did = (0x01).to_bytes(1, byteorder='big')
+		bt = (0xff).to_bytes(1, byteorder='big')
+		#bt = (0x11).to_bytes(1, byteorder='big')
+		sbt = (0xffff).to_bytes(2, byteorder='big')
+		#sbt = (0x0102).to_bytes(2, byteorder='big')
+		#op = (0x04).to_bytes(1, byteorder='big')
+		op = (0x01).to_bytes(1, byteorder='big')
+		#bl = (0x07).to_bytes(4, byteorder='big')
+		bl = (0x00).to_bytes(4, byteorder='big')
+		opt = (0x00).to_bytes(7, byteorder='big')
+		ul = (0x05).to_bytes(2, byteorder='big')
+		sn = (0x01).to_bytes(4, byteorder='big')
+		#data = (0x01).to_bytes(1, byteorder='big')
+		#send_data = ver+cid+dt+did+bt+sbt+op+bl+opt
+		#send_data = ver+cid+dt+did+bt+sbt+op+bl+opt+ul+sn+data
+		send_data = b''
+		#开关
+		#send_datas = [0x01,0x00,0x01,0x01,0x01,0x11,0x01,0x03,0x04,0x00,0x00,0x00,0x07,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,0x01,0x00]
+		#心跳
+		send_datas = [0x01,0x00,0x01,0x01,0x01,0x11,0x01,0x03,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00]
+		#send_datas = [0x01,0x01,0x7f,0x01,0x01,0x11,0x01,0x03,0x04,0x00,0x00,0x00,0x10,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x21,0xcc,0x3d,0xe9,0xe4,0xab,0x7d,0xfe,0xf7,0xd0,0x84,0xf8,0x36,0xc7,0x31,0xda]
+		for i in send_datas:
+			send_data += (i).to_bytes(1, byteorder='big')
+
+		send_num = tcp_socket.send(send_data)
+		print(type(send_data),send_data,send_num)
+		recv_data = tcp_socket.recv(1024)
+		print(recv_data,len(recv_data))
+		tcp_socket.close()
+	except Exception as e:
+		print(str(e))
+
+if __name__ == '__main__':
+	test()
