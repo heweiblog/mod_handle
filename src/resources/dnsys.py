@@ -33,6 +33,7 @@ sbt_code = {
 		'bt': 0x11,
 		'switch': 0x0401,
 		'srcipdisable': 0x0403,
+		'domaindisable': 0x0404,
 		'domainblacklist': 0x0407 
 	},
 	'amplificationattack': {
@@ -62,6 +63,12 @@ sbt_code = {
 		'rules': 0x0102,
 		'srcipblacklist': 0x0104,
 	},
+	'nxr': {
+		'switch': 0x0201,
+		'redirectip': 0x0203,
+		'domainblacklist': 0x0205,
+		'srcipblacklist': 0x0204
+	}
 }
 
 def switch_map(data):
@@ -70,8 +77,8 @@ def switch_map(data):
 	return (0x00).to_bytes(1, byteorder='big')
 
 
-def threshold_map(data):
-	return (data['threshold']).to_bytes(4, byteorder='big')
+def num_map(num,byte):
+	return (num).to_bytes(byte, byteorder='big')
 
 
 def ip_map(data):
@@ -103,16 +110,20 @@ def domain_map(data):
 	return data['domain'].encode() + (0x00).to_bytes(1, byteorder='big')
 
 
+def threshold_map(data):
+	return num_map(data['threshold'],4)
+
+
 def ip_threshold_map(data):
-	return threshold_map(data) + ip_mask_map(data)
+	return num_map(data['threshold'],4) + ip_mask_map(data)
 	
 
 def domain_threshold_map(data):
-	return threshold_map(data) + domain_map(data)
+	return num_map(data['threshold'],4) + domain_map(data)
 
 
 def ip_domain_threshold_map(data):
-	return threshold_map(data) + ip_mask_map(data) + domain_map(data)
+	return num_map(data['threshold'],4) + ip_mask_map(data) + domain_map(data)
 
 
 def answer_map(data):
@@ -144,10 +155,15 @@ def rrset_map(data):
 	return ip_mask_map({'ip':'0.0.0.0/0'}) + qtype_map(data) + domain_map(data) + weight_map(data) + ttl_map(data) + answer_map(data) 
 	
 
+def nxr_redirect_ip_map(data):
+	return num_map(data['weight'],1) + ip_map(data)
+
+
 dnsys_data_methods = {
 	'cachedisable': {
 		'switch': switch_map,
 		'srcipdisable': ip_mask_map,
+		'domaindisable': domain_map,
 		'domainblacklist': domain_map
 	},
 	'amplificationattack': {
@@ -176,6 +192,12 @@ dnsys_data_methods = {
 		'rules': rrset_map,
 		'srcipblacklist': ip_mask_map
 	},
+	'nxr': {
+		'switch': switch_map,
+		'redirectip': nxr_redirect_ip_map,
+		'domainblacklist': domain_map,
+		'srcipblacklist': ip_mask_map
+	}
 }
 
 

@@ -3,10 +3,11 @@
 
 import json,time,asyncio,aiohttp,socket
 from common.log import logger,conf_logger
-from common.check import check_dns_data,check_handle_data
+from common.check import check_data
 from common.queue import task_queue,handle_queue
 from common.conf import crm_cfg
-from common.pub import ybind_bt,fpga_bt,handle_bt,dnsys_addr
+from common.pub import ybind_bt,fpga_bt,dnsys_addr,proxy_bt,xforward_bt,kernel_bt,proxy_xforward_bt
+
 from resources.ybind import ybind_map
 from resources.dnsys import dnsys_data_map,dnsys_result_check
 from models import content,switch,iptables,proto,threshold,domain,ip,view,acl,dts,bind,handle
@@ -17,7 +18,7 @@ handle_loop = asyncio.get_event_loop()
 sync_loop = asyncio.get_event_loop()
 
 
-db_methods = {
+dns_db_methods = {
 	'iptables': {
 		'switch': switch.switch_methods,
 		'rules': iptables.iptables_methods,
@@ -237,43 +238,16 @@ db_methods = {
 
 def handle_real_data(data):
 	try:
-		db_methods[data['bt']][data['sbt']][data['op']](data)
+		dns_db_methods[data['bt']][data['sbt']][data['op']](data)
 	except Exception as e:
 		logger.error(str(e))
 
 
-# 查询请求
-def handle_query(data):
-	try:
-		data = data['contents'][0]
-		res_msg = check_dns_data(data, 'GET')
-		if res_msg == 'true':
-			res = db_methods[data['bt']][data['sbt']][data['op']](data)
-			if res is not None:
-				return res
-			return {'rcode': 2, 'description': 'The database {} {} table has no data'.format(data['bt'],data['sbt'])}
-		else:
-			return {'rcode': 1, 'description': 'Request data format error:{}'.format(res_msg)}
-	except Exception as e:
-		logger.error(str(e))
-		return {'rcode': 3, 'description': 'Server program error'}
 
 
-def handle_dns_data(data,method):
-	if 'contents' in data:
-		for i in data['contents']:
-			res = check_dns_data(i, method)
-			if res == 'true':
-				task_queue.put(i)
-			elif res == 'done':
-				conf_logger.info('conf success: data: {}'.format(data))
-				content.add_oplog(i, 'success', '')
-			else:
-				conf_logger.info('conf failed: {} data: {}'.format(res,data))
-				content.add_oplog(i, 'fail', res)
 
 
-async def conf_fpga(client,data):
+async def conf_dnsys(client,data):
 	try:
 		send_data = dnsys_data_map(data)
 		print(send_data,len(send_data))
@@ -324,7 +298,7 @@ async def conf_ybind(client,data):
 async def pub_conf(data):
 	async with aiohttp.ClientSession() as client:
 		if data['bt'] in fpga_bt:
-			fpga_res = await conf_fpga(client,data)
+			fpga_res = await conf_dnsys(client,data)
 			conf_logger.debug('recv data from dnsys: {}'.format(fpga_res))
 			try:
 				if fpga_res[0]['status'] == 'success':
@@ -361,7 +335,7 @@ async def pub_conf(data):
 				conf_logger.info('conf failed: {}'.format(data))
 				return 'ybind api return result error'
 		else:
-			fpga_res = await conf_fpga(client,data)
+			fpga_res = await conf_dnsys(client,data)
 			ybind_res = await conf_ybind(client,data)
 			conf_logger.debug('recv data from ybind:{} dnsys:{}'.format(ybind_res,fpga_res))
 			try:
@@ -394,38 +368,6 @@ async def pub_conf(data):
 				return 'api return result error'
 
 
-def handle_sync_data(data,method):
-	try:
-		result = []
-		for i in data['contents']:
-			res = check_dns_data(i, method)
-			if res == 'true':
-				task = sync_loop.create_task(pub_conf(i))
-				sync_loop.run_until_complete(task)
-				res = task.result()
-				if res == 'success':
-					r = {'id': i['id'], 'status': 'success','description': 'conf success'}
-					result.append(r)
-				else:
-					r = {'id':i['id'], 'status': 'fail', 'description': res}
-					result.append(r)
-			elif res == 'done':
-				conf_logger.warning('conf success: {} data: {}'.format(res,data))
-				content.add_oplog(i, 'success', '')
-				r = {'id':i['id'], 'status': 'success', 'description': 'conf success'}
-				result.append(r)
-			else:
-				conf_logger.warning('conf failed: {} data: {}'.format(res,data))
-				content.add_oplog(i, 'fail', res)
-				r = {'id':i['id'], 'status': 'fail', 'description': res}
-				result.append(r)
-		return json.dumps(result),200,{"Content-Type":"application/json"}
-	except Exception as e:
-		conf_logger.error(str(e))
-		return {'rcode': 3, 'status': 'error', 'description': str(e)}
-	return {'rcode': 4, 'status': 'error', 'description': 'unknow error'}
-
-
 
 def get_all_fpga_conf():
 	l = acl.get_all_acl() + view.get_all_fpga_view() + dts.get_all_dts() + ip.get_all_ip() + domain.get_all_domain() + \
@@ -453,15 +395,12 @@ def main_task():
 
 
 
-
-#以下为handle处理
-
-def handle_handle_query(data):
+def handle_query(data):
 	try:
 		data = data['contents'][0]
-		res_msg = check_handle_data(data, 'GET')
+		res_msg = check_data(data, 'GET')
 		if res_msg == 'true':
-			res = handle_db_methods[data['bt']][data['sbt']][data['op']](data)
+			res = handle_db_methods[data['bt']][data['sbt']][data['op']](data) if data['service'] == 'handle' else dns_db_methods[data['bt']][data['sbt']][data['op']](data)
 			if res is not None:
 				return res
 			return {'rcode': 2, 'description': 'The database {} {} table has no data'.format(data['bt'],data['sbt'])}
@@ -472,18 +411,30 @@ def handle_handle_query(data):
 		return {'rcode': 3, 'description': 'Server program error'}
 
 
-def handle_handle_data(data,method):
+def handle_data(data,method):
 	if 'contents' in data:
+		dns_list,handle_list = [],[]
 		for i in data['contents']:
-			res = check_handle_data(i, method)
+			res = check_data(i, method)
 			if res == 'true':
-				handle_queue.put(i)
+				if i['service'] == 'dns':
+					task_queue.put(i)
+					#dns_list.append(i)
+				else:
+					#handle_queue.put(i)
+					handle_list.append(i)
 			elif res == 'done':
 				conf_logger.info('conf success: data: {}'.format(data))
 				content.add_oplog(i, 'success', '')
 			else:
 				conf_logger.info('conf failed: {} data: {}'.format(res,data))
 				content.add_oplog(i, 'fail', res)
+		if len(handle_list) > 0:
+			contents = {'contents':handle_list}
+			handle_queue.put(contents)
+		#if len(dns_list) > 0:
+			#contents = {'contents':dns_list}
+			#task_queue.put(contents)
 
 
 handle_db_methods = {
@@ -530,6 +481,10 @@ handle_db_methods = {
 		'switch': switch.handle_switch_methods,
 		'rules': handle.handle_tag_list_methods
 	},
+	'selfcheck': {
+		'blackqtype': handle.selfcheck_qtype_methods,
+		'responserules': handle.selfcheck_response_methods
+	},
 	'backendmeter': {
 		'switch': switch.handle_switch_methods,
 		'rules': handle.total_meter_methods
@@ -539,37 +494,144 @@ handle_db_methods = {
 	}
 }
 
-async def conf_handle(client,data):
-	# 配置内核
-	return {'status':'success'}
+
+async def conf_kernel(client,data):
+	return [{'id':i['id'], 'status':'success', 'msg':''} for i in data['contents']]
 
 
-async def conf_proxy(client,data):
-	# 配置代理
-	return {'status':'success'}
+async def conf_xforward_or_proxy(url,client,data):
+	try:
+		async with client.post(url, json = data, timeout = 10) as resp:
+			return await resp.json()
+	except Exception as e:
+		conf_logger.error(str(e))
+	return [{'id':i['id'], 'status':'failed', 'msg':'send error'} for i in data['contents']]
+
+
+def change_data(data):
+	res = {}
+	for i in data:
+		print(i)
+		res[i['id']] = i
+	return res
+
+
+def update_db(data,res):
+	data = change_data(data)	
+	res = change_data(res)	
+	for i in data:
+		if i in res:
+			content.add_oplog(data[i], res[i]['status'], res[i]['msg'])
+			if res[i]['status'] == 'success':
+				handle_db_methods[data[i]['bt']][data[i]['sbt']][data[i]['op']](data[i])
+				conf_logger.info('conf success: {}'.format(data[i]))
+			else:
+				conf_logger.info('conf failed: {}'.format(data[i]))
+		else:
+			content.add_oplog(data[i], 'failed', 'api return error')
+			conf_logger.info('conf failed: {}'.format(data[i]))
+		
+
+def cmp_update_db(data,proxy_res,xforward_res):
+	data = change_data(data)	
+	proxy_res = change_data(proxy_res)	
+	xforward_res = change_data(xforward_res)
+	l = []
+	for i in data:
+		if i in xforward_res and i in proxy_res:
+			if proxy_res[i]['status'] == 'success' and xforward_res[i]['status'] == 'success':
+				content.add_oplog(data[i], 'success', '')
+				handle_db_methods[data[i]['bt']][data[i]['sbt']][data[i]['op']](data[i])
+				conf_logger.info('conf success: {}'.format(data[i]))
+				l.append(proxy_res[i])
+			elif proxy_res[i]['status'] != 'success' and xforward_res[i]['status'] == 'success':
+				content.add_oplog(data[i], proxy_res[i]['status'], proxy_res[i]['msg'])
+				conf_logger.info('conf failed: {}'.format(data[i]))
+				l.append(proxy_res[i])
+			elif proxy_res[i]['status'] == 'success' and xforward_res[i]['status'] != 'success':
+				content.add_oplog(data[i], xforward_res[i]['status'], xforward_res[i]['msg'])
+				conf_logger.info('conf failed: {}'.format(data[i]))
+				l.append(xforward_res[i])
+			else:
+				content.add_oplog(data[i], 'failed', 'conf failed')
+				conf_logger.info('conf failed: {}'.format(data[i]))
+				l.append(xforward_res[i])
+		else:
+			content.add_oplog(data[i], 'failed', 'api return error')
+			conf_logger.info('conf failed: {}'.format(data[i]))
+			l.append({'id':i, 'status':'faild', 'msg':'api return error'})
+	return l
 
 
 async def pub_handle_conf(data):
-	# client proxy 可能用到
+	bt = data['contents'][0]['bt']
 	async with aiohttp.ClientSession() as client:
-		handle_res = await conf_handle(client,data)
-		conf_logger.debug('recv data from handle: {}'.format(handle_res))
-		try:
-			#根据返回判断 比如如下
-			if handle_res['status'] == 'success':
-				content.add_oplog(data, 'success', '')
-				handle_db_methods[data['bt']][data['sbt']][data['op']](data)
-				conf_logger.info('conf success: {}'.format(data))
-				return 'success'
+		if bt in proxy_xforward_bt:
+			proxy_res = await conf_xforward_or_proxy(crm_cfg['proxy']['conf_url'],client,data)
+			xforward_res = await conf_xforward_or_proxy(crm_cfg['xforward']['conf_url'],client,data)
+			conf_logger.debug('recv data from proxy: {}'.format(proxy_res))
+			conf_logger.debug('recv data from xforward: {}'.format(xforward_res))
+			return cmp_update_db(data['contents'],proxy_res,xforward_res)
+		elif bt in kernel_bt:
+			kernel_res = await conf_kernel(client,data)
+			conf_logger.debug('recv data from kernel: {}'.format(kernel_res))
+			update_db(data['contents'],kernel_res)
+			return kernel_res
+		elif bt in proxy_bt:
+			proxy_res = await conf_xforward_or_proxy(crm_cfg['proxy']['conf_url'],client,data)
+			conf_logger.debug('recv data from proxy: {}'.format(proxy_res))
+			update_db(data['contents'],proxy_res)
+			return proxy_res
+		elif bt in xforward_bt:
+			xforward_res = await conf_xforward_or_proxy(crm_cfg['xforward']['conf_url'],client,data)
+			conf_logger.debug('recv data from xforward: {}'.format(xforward_res))
+			update_db(data['contents'],xforward_res)
+			return xforward_res
+		else:
+			res = [{'id':i['id'], 'status':'success', 'msg':''} for i in data['contents']]
+			update_db(data['contents'],res)
+			return res
+
+	
+
+def handle_sync_data(data,method):
+	if 'contents' in data:
+		dns_list,handle_list,result = [],[],[]
+		for i in data['contents']:
+			res = check_data(i, method)
+			if res == 'true':
+				if i['service'] == 'dns':
+					dns_list.append(i)
+				else:
+					handle_list.append(i)
+			elif res == 'done':
+				conf_logger.info('conf success: data: {}'.format(data))
+				content.add_oplog(i, 'success', '')
+				r = {'id':i['id'], 'status': 'success', 'description': 'conf success'}
+				result.append(r)
 			else:
-				content.add_oplog(data, 'fail', fpga_res[0]['msg'])
-				conf_logger.info('conf failed: {}'.format(data))
-				return fpga_res[0]['msg']
-		except Exception as e:
-			conf_logger.error(str(e))
-			content.add_oplog(data, 'fail', 'handle api return result error')
-			conf_logger.info('conf failed: {}'.format(data))
-			return 'handle api return result error'
+				conf_logger.info('conf failed: {} data: {}'.format(res,data))
+				content.add_oplog(i, 'fail', res)
+				r = {'id':i['id'], 'status': 'fail', 'description': res}
+				result.append(r)
+		task = sync_loop.create_task(pub_conf({'contents':dns_list})) if data['contents'][0]['service'] == 'dns' else sync_loop.create_task(pub_handle_conf({'contents':handle_list}))
+		sync_loop.run_until_complete(task)
+		res = task.result()
+		return json.dumps(result+res),200,{"Content-Type":"application/json"}
+
+
+def get_all_handle_conf():
+	l = handle.get_all_handle()
+	for i in range(len(l)):
+		l[i]['id'] = i+1
+	return l
+
+
+def get_all_proxy_conf():
+	l = handle.get_all_proxy_handle()
+	for i in range(len(l)):
+		l[i]['id'] = i+1
+	return l
 
 
 def handle_main_task():

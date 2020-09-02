@@ -7,7 +7,7 @@ import sys,json,threading,time,copy,asyncio,aiohttp
 from flask import Flask,request,jsonify
 from common.conf import crm_cfg
 from common.log import logger
-from common.pub import data_check
+from common.pub import data_check,version
 from models import db
 from resources import base,task
 from models import content
@@ -25,8 +25,8 @@ db.create_all()
 
 
 # 配置查询
-@app.route('/dnsys/v1.0/internal/configs', methods=['GET'])
-@app.route('/dnsys/v1.0/internal/sync-configs', methods=['GET'])
+@app.route('/api/v1.0/internal/configs', methods=['GET'])
+@app.route('/api/v1.0/internal/sync-configs', methods=['GET'])
 def handle_get_request():
 	try:
 		data = data_check(request.get_json())
@@ -39,13 +39,14 @@ def handle_get_request():
 	return {'rcode': 1, 'description': 'Request data format error'}
 
 
-# dns 配置下发 异步
-@app.route('/dnsys/v1.0/internal/configs', methods=['POST','PUT','DELETE'])
+# 配置下发 异步
+@app.route('/api/v1.0/internal/configs', methods=['POST','PUT','DELETE'])
 def handle_post_request():
 	try:
 		data = data_check(request.get_json())
+		print(data)
 		if data is not None:
-			base.handle_dns_data(data,request.method)
+			base.handle_data(data,request.method)
 		else:
 			return {'rcode': 1, 'description': 'Data format error cannot be handled'}
 	except Exception as e:
@@ -53,38 +54,10 @@ def handle_post_request():
 		return {'rcode': 1, 'description': 'Data format error cannot be handled'}
 	return {'rcode': 0, 'description': 'Recevied'}
 
-
-# handle配置查询
-@app.route('/handle/v1.0/internal/configs', methods=['GET'])
-def handle_handle_get_request():
-	try:
-		data = data_check(request.get_json())
-		if data is not None:
-			res = json.dumps(base.handle_handle_query(data))
-			logger.info('query results: {}'.format(res))
-			return res,200,{"Content-Type":"application/json"}
-	except Exception as e:
-		logger.error(str(e))
-	return {'rcode': 1, 'description': 'Request data format error'}
-
-
-# handle 配置下发 异步
-@app.route('/handle/v1.0/internal/configs', methods=['POST','PUT','DELETE'])
-def handle_handle_request():
-	try:
-		data = data_check(request.get_json())
-		if data is not None:
-			base.handle_handle_data(data,request.method)
-		else:
-			return {'rcode': 1, 'description': 'Data format error cannot be handled'}
-	except Exception as e:
-		logger.error(str(e))
-		return {'rcode': 1, 'description': 'Data format error cannot be handled'}
-	return {'rcode': 0, 'description': 'Recevied'}
 
 
 # 配置下发 同步
-@app.route('/dnsys/v1.0/internal/sync-configs', methods=['POST','PUT','DELETE'])
+@app.route('/api/v1.0/internal/sync-configs', methods=['POST','PUT','DELETE'])
 def handle_sync_request():
 	try:
 		data = data_check(request.get_json())
@@ -96,7 +69,7 @@ def handle_sync_request():
 
 
 # 任务下发
-@app.route('/handle/v1.0/internal/tasks', methods=['POST','GET','DELETE'])
+@app.route('/api/v1.0/internal/tasks', methods=['POST','GET','DELETE'])
 def handle_task_request():
 	try:
 		if request.method == 'POST':
@@ -120,14 +93,14 @@ def handle_task_request():
 
 
 # 心跳检测
-@app.route('/api/v1/internal/status', methods=['GET'])
+@app.route('/api/v1.0/internal/status', methods=['GET'])
 def handle_heartbeat_request():
 	ms_v,crm_v = content.get_version()
 	return {'status':"running",'msRelease':'1','msVersion':ms_v,'deviceRelease': "1",'deviceVersion':crm_v,'softwareVersion':'1.0','licenseInfo':{'dev':'centos7','cpu':'i7-9700H'}}
 
 
 # 增量传输
-@app.route('/api/v1/internal/oplog', methods=['GET'])
+@app.route('/api/v1.0/internal/oplog', methods=['GET'])
 def handle_add_download_request():
 	try:
 		version = request.args.get('startVersion',type=int) # 获得的是整数
@@ -139,13 +112,15 @@ def handle_add_download_request():
 
 
 # 全量传输
-@app.route('/api/v1/internal/configs', methods=['GET'])
+@app.route('/api/v1.0/internal/all-configs', methods=['GET'])
 def handle_all_download_request():
 	source = request.args.get('source')
 	if source == 'ms':
 		return {'contents':base.get_all_conf()}
-	elif source == 'fpga':
-		return {'contents':base.get_all_fpga_conf()}
+	elif source == 'proxy' or source == 'xforward':
+		return {'contents':base.get_all_proxy_conf()}
+	elif source == 'recursion':
+		return {'contents':base.get_all_handle_conf()}
 	elif source == 'ybind':
 		return {'contents':base.get_all_conf()}
 	return {'rcode': 1, 'description': 'source parameter error cannot be handled'}
@@ -154,10 +129,20 @@ def handle_all_download_request():
 @app.route('/post', methods=['POST','GET','PUT','DELETE'])
 def show():
 	data = request.get_json()
-	print(data)
 	if 'contents' in data:
-		return jsonify([{'id':1, 'status':'success', 'msg':''}])
-	return jsonify({'rcode': 0, 'description': 'complete', 'status':'complete'})
+		l = []
+		for i in data['contents']:
+			res = {'id':i['id'], 'status':'success', 'msg':''}
+			l.append(res)
+		return jsonify(l)
+
+
+@app.route('/task', methods=['POST','GET','PUT','DELETE'])
+def test_task():
+	data = request.get_json()
+	if data['contents'][0]['tasktype'] == 'cachequery':
+		return jsonify({'status':'success','msg':{'index':12,'type':'hs_site','ttl':86400,'timestamp':time.strftime('%Y-%m-%d %H:%M:%S'),"data":{'format':'string','value':'hdladmin@cnri.reston.va.us'}}})
+	return jsonify({'status':'success','msg':''})
 
 
 @click.command(cls=DaemonCLI, daemon_params={'pidfile': '/var/hcrm/hcrm.pid'})
@@ -165,13 +150,14 @@ def show():
 def main():
 	threading._start_new_thread(base.main_task,())
 	threading._start_new_thread(base.handle_main_task,())
-	logger.error('hcrm start listen on {}:{}'.format(crm_cfg['net']['ip'],crm_cfg['net']['port']))
+	logger.info('hcrm start listen on {}:{}'.format(crm_cfg['net']['ip'],crm_cfg['net']['port']))
 	app.run(host=crm_cfg['net']['ip'],port=int(crm_cfg['net']['port']),debug=False)
 
 
 if __name__ == '__main__':
 	if len(sys.argv) == 2 and (sys.argv[1] == '-v' or sys.argv[1] == 'version'):
-		print('1.0.2')
+		#print(version)
+		print('1.0.4')
 		sys.exit(0)
 	main()
 

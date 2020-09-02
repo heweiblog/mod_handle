@@ -4,7 +4,7 @@
 import json
 from common.log import logger
 from sqlalchemy import and_
-from . import db,to_dict_list
+from . import db,to_dict_list,to_no_bt_dict_list,to_have_bt_dict_list
 
 
 class HandleIpGroup(db.Model):
@@ -219,7 +219,7 @@ class HandleTagThreshold(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	bt = db.Column(db.String(40), nullable=False)
 	sbt = db.Column(db.String(40), nullable=False)
-	handle = db.Column(db.String(300), nullable=False)
+	handle = db.Column(db.String(200), nullable=False)
 	meter = db.Column(db.BigInteger, nullable=False)
 
 	def __init__(self, bt, sbt, handle, meter):
@@ -349,7 +349,7 @@ class HandleTagList(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	bt = db.Column(db.String(40), nullable=False)
 	sbt = db.Column(db.String(40), nullable=False)
-	handle = db.Column(db.String(300), nullable=False)
+	handle = db.Column(db.String(200), nullable=False)
 
 	def __init__(self, bt, sbt, handle):
 		self.bt = bt
@@ -427,13 +427,9 @@ def get_handle_forward_server(data):
 
 def modify_handle_forward_server(data):
 	try:
-		t = HandleForwardServer.query.filter_by(group=data['data']['group']).first()
-		if t is not None:
-			t.ip = data['data']['ip']
-			t.port = data['data']['port']
-			t.proto = data['data']['proto']
-			db.session.commit()
-		else:
+		t = HandleForwardServer.query.filter(and_(HandleForwardServer.group==data['data']['group'],HandleForwardServer.proto==data['data']['proto'],\
+		HandleForwardServer.ip==data['data']['ip'],HandleForwardServer.port==data['data']['port'])).first()
+		if t is None:
 			t = HandleForwardServer(data['data']['group'], data['data']['proto'], data['data']['ip'], data['data']['port'])
 			db.session.add(t)
 			db.session.commit()
@@ -445,7 +441,8 @@ def modify_handle_forward_server(data):
 
 def del_handle_forward_server(data):
 	try:
-		t = HandleForwardServer.query.filter_by(group=data['data']['group']).first()
+		t = HandleForwardServer.query.filter(and_(HandleForwardServer.group==data['data']['group'],HandleForwardServer.proto==data['data']['proto'],\
+		HandleForwardServer.ip==data['data']['ip'],HandleForwardServer.port==data['data']['port'])).first()
 		if t is not None:
 			db.session.delete(t)
 			db.session.commit()
@@ -483,8 +480,8 @@ class HandleProto(db.Model):
 	proto = db.Column(db.String(20), nullable=False)
 	action = db.Column(db.String(20), nullable=False)
 	port = db.Column(db.Integer, nullable=False)
-	ipv4 = db.Column(db.String(80), nullable=False)
-	ipv6 = db.Column(db.String(80), nullable=False)
+	ipv4 = db.Column(db.String(400), nullable=False)
+	ipv6 = db.Column(db.String(800), nullable=False)
 
 	def __init__(self, proto, action, port, ipv4, ipv6):
 		self.proto = proto
@@ -492,23 +489,50 @@ class HandleProto(db.Model):
 		self.port = port
 		self.ipv4 = ipv4
 		self.ipv6 = ipv6
+	
+	def get_dict(self):
+		return {'proto':self.proto,'action':self.action,'port':self.port,'ipv4':json.loads(self.ipv4),'ipv6':json.loads(self.ipv6)}
+	def to_dict(self):
+		return {'source':'ms','id':0,'service':'handle','bt':'businessproto','sbt':'rules','op':'add','data':self.get_dict()}
+
+
+def get_all_handle_proto():
+	try:
+		rules = HandleProto.query.all()
+		if rules is not None:
+			l = []
+			for i in rules:
+				l.append(i.to_dict())
+			return l
+	except Exception as e:
+		logger.warning(str(e))
+	return []
+
 
 
 def get_handle_proto(data):
-	return to_dict_list(HandleProto.query.all())
+	try:
+		rules = HandleProto.query.all()
+		if rules is not None:
+			l = []
+			for i in rules:
+				l.append(i.get_dict())
+			return l
+	except Exception as e:
+		logger.warning(str(e))
+	return []
 
 
 def modify_handle_proto(data):
 	try:
-		t = HandleProto.query.filter_by(action=data['data']['proto']).first()
+		ipv4 = json.dumps(data['data']['ipv4'])
+		ipv6 = json.dumps(data['data']['ipv6'])
+		t = HandleProto.query.filter(and_(HandleProto.proto==data['data']['proto'],HandleProto.ipv4==ipv4,HandleProto.ipv6==ipv6,HandleProto.port==data['data']['port'])).first()
 		if t is not None:
-			t.ipv4 = data['data']['ipv4']
-			t.ipv6 = data['data']['ipv6']
-			t.port = data['data']['port']
-			t.proto = data['data']['action']
+			t.action = data['data']['action']
 			db.session.commit()
 		else:
-			t = HandleProto(data['data']['proto'], data['data']['action'], data['data']['port'], data['data']['ipv4'], data['data']['ipv6'])
+			t = HandleProto(data['data']['proto'], data['data']['action'], data['data']['port'], ipv4, ipv6)
 			db.session.add(t)
 			db.session.commit()
 		return True
@@ -519,7 +543,9 @@ def modify_handle_proto(data):
 
 def del_handle_proto(data):
 	try:
-		t = HandleProto.query.filter_by(action=data['data']['proto']).first()
+		ipv4 = json.dumps(data['data']['ipv4'])
+		ipv6 = json.dumps(data['data']['ipv6'])
+		t = HandleProto.query.filter(and_(HandleProto.proto==data['data']['proto'],HandleProto.ipv4==ipv4,HandleProto.ipv6==ipv6,HandleProto.port==data['data']['port'])).first()
 		if t is not None:
 			db.session.delete(t)
 			db.session.commit()
@@ -553,8 +579,8 @@ handle_proto_methods = {
 
 class HandleCa(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
-	ca_cert = db.Column(db.String(4000), nullable=False)
-	rsa_key = db.Column(db.String(4000), nullable=False)
+	ca_cert = db.Column(db.String(2100), nullable=False)
+	rsa_key = db.Column(db.String(2100), nullable=False)
 
 	def __init__(self, ca_cert, rsa_key):
 		self.ca_cert = ca_cert
@@ -613,48 +639,68 @@ handle_ca_methods = {
 
 class HandleXforce(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
-	handle = db.Column(db.String(300), nullable=False)
-	ttl = db.Column(db.Integer, nullable=False)
-	index = db.Column(db.Integer, nullable=False)
-	type = db.Column(db.String(40), nullable=False)
-	data = db.Column(db.String(400), nullable=False)
+	handle = db.Column(db.String(200), nullable=False)
+	index = db.Column(db.String(40), nullable=False)
+	type = db.Column(db.String(400), nullable=False)
+	rcode = db.Column(db.Integer, nullable=False)
+	ttl = db.Column(db.BigInteger, nullable=False)
+	timestamp = db.Column(db.BigInteger, nullable=False)
+	values = db.Column(db.Text, nullable=False)
 
-	def __init__(self, handle, ttl, index, type, data):
+	def __init__(self, handle, index, type, rcode, ttl, timestamp, values):
 		self.handle = handle
-		self.ttl = ttl
 		self.index = index
 		self.type = type
-		self.data = data
-	
+		self.rcode = rcode
+		self.ttl = ttl
+		self.timestamp = timestamp
+		self.values = values
+
 	def get_dict(self):
-		return {'handle':self.handle, 'ttl':self.ttl, 'index':self.index, 'type':self.type, 'data':json.loads(self.data)}
+		return {'handle':self.handle,'index':json.loads(self.index),'type':json.loads(self.type),'rcode':self.rcode,'ttl':self.ttl,'timestamp':self.timestamp,'data':json.loads(self.data)}
+	def to_dict(self):
+		return {'source':'ms','id':0,'service':'handle','bt':'xforce','sbt':'rules','op':'add','data':self.get_dict()}
+
+
+def get_all_handle_xforce():
+	try:
+		rules = HandleXforce.query.all()
+		if rules is not None:
+			l = []
+			for i in rules:
+				l.append(i.to_dict())
+			return l
+	except Exception as e:
+		logger.warning(str(e))
+	return []
+
 
 
 def get_handle_xforce(data):
 	try:
 		rules = HandleXforce.query.all()
-		l = []
-		if rules is not None:
-			for i in rules:
-				l.append(i.get_dict())
+		for i in rules:
+			l.append(i.get_dict())
 		if len(l) > 0:
 			return l
 	except Exception as e:
 		logger.warning(str(e))
 	return None
 
-
+		
 def modify_handle_xforce(data):
 	try:
-		t = HandleXforce.query.filter_by(handle=data['data']['handle']).first()
+		index = json.dumps(data['data']['index'])
+		types = json.dumps(data['data']['type'])
+		t = HandleXforce.query.filter(and_(HandleXforce.handle==data['data']['handle'],HandleXforce.index==index,HandleXforce.type==types)).first()
 		if t is not None:
+			t.rcode = data['data']['rcode']
 			t.ttl = data['data']['ttl']
-			t.index = data['data']['index']
-			t.type = data['data']['type']
-			t.data = json.dumps(data['data']['data'])
+			t.timestamp = data['data']['timestamp']
+			t.data = json.dumps(data['data']['values'])
 			db.session.commit()
 		else:
-			t = HandleXforce(data['data']['handle'], data['data']['ttl'], data['data']['index'], data['data']['type'], json.dumps(data['data']['data']))
+			t = HandleXforce(data['data']['handle'], index, types, data['data']['rcode'], data['data']['ttl'], data['data']['timestamp'], json.dumps(data['data']['values']))
 			db.session.add(t)
 			db.session.commit()
 		return True
@@ -665,8 +711,9 @@ def modify_handle_xforce(data):
 
 def del_handle_xforce(data):
 	try:
-		#t = HandleXforce.query.filter(and_(HandleXforce.handle==data['data']['handle'],HandleXforce.index==data['data']['index'],HandleXforce.type==data['data']['type'])).first()
-		t = HandleXforce.query.filter_by(handle=data['data']['handle']).first()
+		index = json.dumps(data['data']['index'])
+		types = json.dumps(data['data']['type'])
+		t = HandleXforce.query.filter(and_(HandleXforce.handle==data['data']['handle'],HandleXforce.index==index,HandleXforce.type==types)).first()
 		if t is not None:
 			db.session.delete(t)
 			db.session.commit()
@@ -696,5 +743,227 @@ handle_xforce_methods = {
 	'delete': del_handle_xforce,
 	'clear': clear_handle_xforce
 }
+
+
+class HandleString(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	bt = db.Column(db.String(40), nullable=False)
+	sbt = db.Column(db.String(40), nullable=False)
+	string = db.Column(db.String(40), nullable=False)
+
+	def __init__(self, bt, sbt, string):
+		self.bt = bt
+		self.sbt = sbt
+		self.string = string
+	def get_qtype(self):
+		return {'qtype': self.string}
+	def to_dict(self):
+		if self.sbt == 'qtyperules':
+			return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'qtype':self.string}}
+
+
+def get_all_handle_string():
+	try:
+		rules = HandleString.query.all()
+		l = []
+		for i in rules:
+			l.append(i.to_dict())
+		return l
+	except Exception as e:
+		logger.warning(str(e))
+	return []
+
+
+def get_handle_string(data):
+	try:
+		rules = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'])).all()
+		if rules is not None:
+			l = []
+			for i in rules:
+				if data['sbt'] == 'qtype':
+					l.append(i.get_qtype())
+			if len(l) > 0:
+				return l
+	except Exception as e:
+		logger.warning(str(e))
+	return None
+
+
+
+def modify_handle_string(data):
+	try:
+		t = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'],HandleString.string==data['data']['qtype'])).first()
+		if t is None:
+			if data['sbt'] == 'qtype':
+				t = HandleString(data['bt'], data['sbt'], data['data']['qtype'])
+				db.session.add(t)
+				db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+selfcheck_qtype_methods = {
+	'query': get_handle_string,
+	'add': modify_handle_string,
+	'update': modify_handle_string
+}
+
+
+class HandleDigit(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	bt = db.Column(db.String(40), nullable=False)
+	sbt = db.Column(db.String(40), nullable=False)
+	digit = db.Column(db.BigInteger, nullable=False)
+
+	def __init__(self, bt, sbt, digit):
+		self.bt = bt
+		self.sbt = sbt
+		self.digit = digit
+	def get_responsecode(self):
+		return {'responsecode': self.digit}
+	def to_dict(self):
+		if self.sbt == 'responserules':
+			return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'responsecode':self.digit}}
+
+
+def get_all_total_digit():
+	try:
+		rules = HandleDigit.query.all()
+		l = []
+		for i in rules:
+			l.append(i.to_dict())
+		return l
+	except Exception as e:
+		logger.warning(str(e))
+	return []
+
+
+def get_total_digit(data):
+	try:
+		rules = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'])).all()
+		if rules is not None:
+			l = []
+			for i in rules:
+				if data['sbt'] == 'responsecode':
+					l.append(i.get_responsecode())
+			if len(l) > 0:
+				return l
+	except Exception as e:
+		logger.warning(str(e))
+	return None
+
+
+
+def modify_total_digit(data):
+	try:
+		t = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'],HandleDigit.digit==data['data']['responsecode'])).first()
+		if t is None:
+			if data['sbt'] == 'responsecode':
+				t = HandleDigit(data['bt'], data['sbt'], data['data']['responsecode'])
+				db.session.add(t)
+				db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+selfcheck_response_methods = {
+	'query': get_total_digit,
+	'add': modify_total_digit,
+	'update': modify_total_digit
+}
+
+
+class HandleStub(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	#bt = db.Column(db.String(40), nullable=False)
+	#sbt = db.Column(db.String(40), nullable=False)
+	handle = db.Column(db.String(300), nullable=False)
+	ttl = db.Column(db.Integer, nullable=False)
+	index = db.Column(db.Integer, nullable=False)
+	type = db.Column(db.String(40), nullable=False)
+	data = db.Column(db.Text, nullable=False)
+
+	def __init__(self, handle, ttl, index, type, data):
+		#self.bt = bt
+		#self.sbt = sbt
+		self.handle = handle
+		self.ttl = ttl
+		self.index = index
+		self.type = type
+		self.data = data
+
+
+def get_handle_stub(data):
+	return to_dict_list(HandleStub.query().all())
+
+		
+def modify_handle_stub(data):
+	try:
+		t = HandleStub.query.filter(and_(HandleStub.handle==data['data']['handle'],HandleStub.index==data['data']['index'],HandleStub.type==data['data']['type'])).first()
+		if t is not None:
+			t.ttl = data['data']['ttl']
+			t.data = json.dumps(data['data']['data'])
+			db.session.commit()
+		else:
+			t = HandleStub(data['data']['handle'], data['data']['ttl'], data['data']['index'], data['data']['type'], json.dumps(data['data']['data']))
+			db.session.add(t)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+def del_handle_stub(data):
+	try:
+		t = HandleStub.query.filter(and_(HandleStub.handle==data['data']['handle'],HandleStub.index==data['data']['index'],HandleStub.type==data['data']['type'])).first()
+		if t is not None:
+			db.session.delete(t)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+def clear_handle_stub(data):
+	try:
+		rules = HandleStub.query.all()
+		if rules is not None:
+			for i in rules:
+				db.session.delete(i)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+handle_stub_methods = {
+	'query': get_handle_stub,
+	'add': modify_handle_stub,
+	'update': modify_handle_stub,
+	'delete': del_handle_stub,
+	'clear': clear_handle_stub
+}
+
+# HandleProto 后续添加
+def get_all_handle():
+	return to_have_bt_dict_list(HandleIpList.query.all()) + to_have_bt_dict_list(HandleTagList.query.all()) + \
+	to_have_bt_dict_list(HandleTotalThreshold.query.all()) + to_have_bt_dict_list(HandleIpThreshold.query.all()) + \
+	to_have_bt_dict_list(HandleTagThreshold.query.all()) + to_no_bt_dict_list('useripwhitelist','rules',HandleIpGroup.query.all()) + \
+	to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all()) + to_no_bt_dict_list('certificate','rules',HandleCa.query.all()) + \
+	to_have_bt_dict_list(HandleString.query.all()) + to_have_bt_dict_list(HandleDigit.query.all()) +  get_all_handle_xforce() + \
+	to_no_bt_dict_list('stub','rules',HandleStub.query().all()) + get_all_handle_proto()
+	
+
+
+def get_all_proxy_handle():
+	return to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all()) + to_no_bt_dict_list('certificate','rules',HandleCa.query.all()) + \
+	to_have_bt_dict_list(HandleString.query.all()) + to_have_bt_dict_list(HandleDigit.query.all()) +  get_all_handle_xforce() + get_all_handle_proto()
 
 

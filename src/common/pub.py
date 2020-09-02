@@ -5,13 +5,22 @@ import json
 from common.log import logger
 from common.conf import crm_cfg
 
+version = '1.0.3'
+
 fpga_bt = ['iptables', 'ipfragment', 'dnsipfragment', 'icmpflood', 'tcpflood', 'udpflood', 'creditdname', 'backendthreshold', 'replythreshold', 'spreadecho', 'dts', 'iptrans']
 
 ybind_bt = ['poisonprotect', 'importdnameprotect', 'rrfilter', 'forward', 'edns', 'stub', 'dns64', 'rootconfig']
 
-handle_bt = ['ipacl', 'ipmeter', 'handlemeter', 'ipblack', 'handleblack', 'forwardserver', 'servicecontrol', 'xforce', 'cacheprefetch', 'selfcheck', 'backendmeter']
+handle_bt = {'useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backend','businessservice','businessproto','certificate','xforce',
+			'cachesmartupdate','cacheprefetch','selfcheck','backendmeter','stub'}
 
-proxy_bt = ['forwardserver', 'servicecontrol']
+proxy_bt = []
+
+xforward_bt = []
+
+proxy_xforward_bt = ['backend','businessservice','certificate','xforce','cachesmartupdate','cacheprefetch','selfcheck','stub']
+
+kernel_bt = ['useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backendmeter']
 
 dnsys_addr = (crm_cfg['crm']['ip'], int(crm_cfg['crm']['port']))
 
@@ -26,29 +35,15 @@ DEFAULTGROUP = 'None'
 CONFDATA = 'conf'
 TASKDATA = 'task'
 
-'''
-def data_change(data):
-	if 'contents' in data:
-		for i in data['contents']:
-			for k in i:
-				if k != k.lower():
-					i[k.lower()] = i[k]
-					del i[k]
-				if k == 'data':
-					for j in i[k]:
-						if j != j.lower():
-						i[j.lower()] = i[k][j]
-						del i[j]
-'''
-
 
 # 后续可能得实现只转换key为小写,值不变
 def data_check(data):
 	logger.info('recv data: {}'.format(data))
 	if isinstance(data,dict):
-		data = json.loads(json.dumps(data).lower())
+		#data = json.loads(json.dumps(data).lower())
 		return data
 	elif isinstance(data,str):
-		data = json.loads(data.lower())
+		#data = json.loads(data.lower())
+		data = json.loads(data)
 		return data
 	return None

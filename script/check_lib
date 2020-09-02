@@ -5,7 +5,7 @@ import os
 
 output = os.popen('pip list')
 res = output.read()
-lib = ['click','PyMySQL','daemonocle','Flask','Flask-SQLAlchemy','SQLAlchemy','tld','aiohttp','IPy','dnspython','requests','Flask-BasicAuth']
+lib = ['click','PyMySQL','daemonocle','Flask','Flask-SQLAlchemy','SQLAlchemy','tld','aiohttp','IPy','dnspython','requests','Flask-BasicAuth','pycrypto']
 
 for i in lib:
 	if i not in res:

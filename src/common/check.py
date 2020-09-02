@@ -22,7 +22,7 @@ dns_sbt = ['switch', 'rules', 'totalthreshold', 'ipv4totalthreshold', 'ipv6total
 handle_bt = ['useripwhitelist', 'ipthreshold', 'handlethreshold', 'srcipaccesscontrol', 'handleaccesscontrol', 'backend', 'businessservice', 'businessproto', 'certificate', 'selfcheck', 
 			'xforce', 'cachesmartupdate', 'cacheprefetch', 'backendmeter', 'stub'] 
 
-handle_sbt = ['switch', 'rules', 'forwardserver']
+handle_sbt = ['switch', 'rules', 'blackqtype', 'responserules','forwardserver']
 
 
 #所有请求类型
@@ -112,6 +112,14 @@ def ip_threshold_check(op,data):
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
+
+
+def is_name_80(t):
+	if len(t) > 0:
+		r = re.match(r'[0-9a-zA-Zd_d-]{0,80}',t)
+		if r is not None and r.span()[1] == len(t):
+			return True
+	return False
 
 
 def is_domain_tag(t):
@@ -1040,7 +1048,7 @@ def dns64_rules_check(op,data):
 
 
 
-data_check_methods = {
+dns_check_methods = {
 	'iptables': {
 		'switch': switch_check,
 		'rules': iptables_rules_check
@@ -1255,85 +1263,7 @@ data_check_methods = {
 	}
 }
 
-def base_data_check(data,method):
-	if len(data) != 6:
-		return 'data feild num error'
-	if data['source'] != 'ms' and data['source'] != 'cli':
-		return 'source error'
-	if method == 'POST':
-		if data['op'] != 'add':
-			return 'op error'
-		if data['id'] < 0:
-			return 'id error'
-	elif method == 'PUT':
-		if data['op'] != 'update':
-			return 'op error'
-		if data['id'] < 0:
-			return 'id error'
-	elif method == 'DELETE':
-		if data['op'] != 'delete' and data['op'] != 'clear':
-			return 'op error'
-		if data['id'] < 0:
-			return 'id error'
-	elif method == 'GET':
-		if data['op'] != 'query':
-			return 'op error'
-	return 'true'	
 
-
-#合法性校验 {"source":"ms","id":100,"bt":"xxx","sbt":"xxx","op":"update","data":{"switch":"enable"}}
-def check_dns_data(data,method):
-	try:
-		res = base_data_check(data,method)
-		if res != 'true':
-			return res
-		if data['bt'] not in dns_bt:
-			return 'bt error'
-		if data['sbt'] not in dns_sbt:
-			return 'sbt error'
-		return data_check_methods[data['bt']][data['sbt']](data['op'],data['data'])
-	except Exception as e:
-		logger.error(str(e))
-	return 'unknown error'	
-
-
-
-def file_check(data):
-	if len(data) != 1:
-		return 'data feild num error'
-	if len(data['file']) == 0:	
-		return 'file format error'
-	return 'true'	
-
-
-def handle_cache_check(data):
-	if len(data) != 3:
-		return 'data feild num error'
-	if len(data['handle']) == 0:
-		return 'handle tag {} format error'.format(data['handle'])
-	#  index type check
-	return 'true'	
-
-
-task_check_methods = {
-	'cachebackup': file_check,
-	'cacheimport': file_check,
-	'cachedelete': handle_cache_check,
-	'cachequery': handle_cache_check
-}
-
-
-# task 合法性校验
-def check_task(data):
-	try:
-		if len(data) != 3:
-			return 'data feild num error'
-		if data['source'] != 'ms' and data['source'] != 'cli':
-			return 'source error'
-		return task_check_methods[data['tasktype']](data['data'])
-	except Exception as e:
-		logger.error(str(e))
-	return 'unknown error'	
 
 
 
@@ -1367,12 +1297,20 @@ def handle_ip_threshold_check(op,data):
 	return 'unsupported operations'
 
 
+def is_handle_tag(tag):
+	if len(tag) > 128:
+		return False
+	l = tag.split('/')
+	if len(l) != 2 and len(l[0]) == 0 and len(l[1]) == 0:
+		return False
+	return True
+
+
 def handle_meter_check(op,data):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
-		# 后续添加此字段规则
-		if len(data['handle']) == 0:
+		if is_handle_tag(data['handle']) is False:
 			return 'handle tag {} format error'.format(data['handle'])
 		if data['meter'] < 0 or data['meter'] > 0xffffffff:
 			return 'meter value range error'
@@ -1386,8 +1324,7 @@ def handle_tag_check(op,data):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
-		# handle标识校验
-		if len(data['handle']) > 255 or len(data['handle']) == 0:
+		if is_handle_tag(data['handle']) is False:
 			return 'handle tag {} format error'.format(data['handle'])
 		return 'true'	
 	elif op == 'query' or op == 'clear':
@@ -1395,77 +1332,75 @@ def handle_tag_check(op,data):
 	return 'unsupported operations'
 
 
+def is_handle_proto(proto):
+	protos = ['udp', 'tcp', 'http', 'https']
+	if proto in protos:
+		return True
+	return False
+
+
 def handle_forward_check(op,data):
-	proto = ['icmp', 'udp', 'tcp', 'http', 'https']
-	if op == 'add' or op == 'update':
+	if op == 'add' or op == 'delete':
 		if len(data) != 4:
 			return 'data feild num error'
-		if len(data['group']) == 0 or len(data['group']) > 80:
+		if is_name_80(data['group']) == False:
 			return 'group format error'
-		if data['proto'] not in proto:
+		if is_handle_proto(data['proto']) == False:
 			return 'proto format error'
 		if '/' in data['ip'] or is_ip(data['ip']) is not True:
 			return 'ip {} format error'.format(data['ip'])
-		if data['port'] <= 0 or data['port'] >= 65535:
+		if data['port'] < 1 or data['port'] > 65535:
 			return 'port value range error'
-		return 'true'	
-	if op == 'delete':
-		if len(data['group']) == 0 or len(data['group']) > 80:
-			return 'group format error'
 		return 'true'	
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
+def is_ip_list(l):
+	for i in l:
+		if '/' in i or is_ip(i) is not True:
+			return False
+	return True
+
+
 def handle_proto_check(op,data):
-	proto = ['icmp', 'udp', 'tcp', 'http', 'https']
-	if op == 'add' or op == 'update':
+	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
 		if data['action'] != 'enable' and data['action'] != 'disable':
 			return 'action value error'
-		if data['proto'] not in proto:
+		if is_handle_proto(data['proto']) == False:
 			return 'proto format error'
-		if data['port'] <= 0 or data['port'] >= 65535:
+		if data['port'] < 1 or data['port'] > 65535:
 			return 'port value range error'
-		if '/' in data['ipv4'] or is_ip(data['ipv4']) is not True:
-			return 'ipv4 {} format error'.format(data['ip'])
-		if len(data['ipv6']) > 0 and ('/' in data['ipv6'] or is_ip(data['ipv4']) is not True):
-			return 'ipv6 {} format error'.format(data['ip'])
-		return 'true'	
-	if op == 'delete':
-		if len(data['group']) == 0 or len(data['group']) > 80:
-			return 'group format error'
+		if is_ip_list(data['ipv4']) == False:
+			return 'ipv4 list {} format error'.format(data['ipv4'])
+		if is_ip_list(data['ipv6']) == False:
+			return 'ipv6 list {} format error'.format(data['ipv6'])
 		return 'true'	
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
+
+
+def is_ca(ca):
+	if len(ca) == 0 or len(ca) > 2048:
+		return False
+	r = re.match(r'[0-9a-zA-Zd+d=d/]{0,2048}',ca)
+	if r.span()[1] == len(ca):
+		return True
+	return False
 
 
 def handle_cert_check(op,data):
 	if op == 'add' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
-		if len(data['ca_cert']) == 0:
+		if is_ca(data['ca_cert']) == False:
 			return 'ca_cert format error'
-		if len(data['rsa_key']) == 0:
+		if is_ca(data['rsa_key']) == False:
 			return 'rsa_key format error'
-		return 'true'	
-	elif op == 'query' or op == 'clear':
-		return 'true'
-	return 'unsupported operations'
-
-
-def handle_servicecontrol_check(op,data):
-	proto = ['ipv4-icmp', 'ipv4-udp', 'ipv4-tcp', 'ipv4-http', 'ipv4-https', 'ipv6-icmp', 'ipv6-udp', 'ipv6-tcp', 'ipv6-http', 'ipv6-https']
-	if op == 'add' or op == 'update' or op == 'delete':
-		if len(data) != 2:
-			return 'data feild num error'
-		if data['proto'] not in proto:
-			return 'proto format error'
-		if data['action'] != 'enable' and data['action'] != 'disable':
-			return 'action value error'
 		return 'true'	
 	elif op == 'query' or op == 'clear':
 		return 'true'
@@ -1474,23 +1409,73 @@ def handle_servicecontrol_check(op,data):
 
 def handle_xforce_check(op,data):
 	if op == 'add' or op == 'update' or op == 'delete':
+		if len(data) != 7:
+			return 'data feild num error'
+		if is_handle_tag(data['handle']) is False:
+			return 'handle tag {} format error'.format(data['handle'])
+		if data['rcode'] < 1 or data['rcode'] > 0xffffffff:
+			return 'rcode value range error'
+		if data['ttl'] < 1 or data['ttl'] > 0xffffffff:
+			return 'ttl value range error'
+		if data['timestamp'] < 1 or data['timestamp'] > 0xffffffff:
+			return 'timestamp value range error'
+		if len(data['index']) > 0 and len(data['index']) <= 16:
+			for i in data['index']:
+				if i < 1 or i > 0xffffffff:
+					return 'index value range error'
+		if len(data['type']) > 0:
+			for i in data['type']:
+				if len(i) == 0 or len(i) > 20:
+					return 'type value error'
+		if(len(data['handle']) + len(data['index']) * 4 + len(data['type']) * 4 + 12) > 464:
+			return 'handle_len + index_len*4 + type_len*4 must <= 464'
+		#可能需要根据handle type校验value
+		if len(data['values']) == 0:
+			return 'data error'
+		return 'true'	
+	elif op == 'query' or op == 'clear':
+		return 'true'
+	return 'unsupported operations'
+
+
+def handle_stub_check(op,data):
+	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
-		# 后续添加此字段规则
-		if len(data['handle']) == 0 or len(data['handle']) > 255:
+		if is_handle_tag(data['handle']) is False:
 			return 'handle tag {} format error'.format(data['handle'])
-		if data['ttl'] < 1 or data['ttl'] > 604800:
+		if data['ttl'] < 1 or data['ttl'] > 0xffffffff:
 			return 'ttl value range error'
-		# 补充index校验
-		if data['index'] < 1 or data['index'] > 0xffff:
+		if data['index'] < 1 or data['index'] > 0xffffffff:
 			return 'index value range error'
-		#补充type校验
-		if len(data['type']) == 0:
+		if len(data['type']) == 0 or len(data['type']) > 20:
 			return 'type error'
-		#根据type校验data
+		#可能需要根据type校验data
 		if len(data['data']) == 0:
 			return 'data error'
 		return 'true'	
+	elif op == 'query' or op == 'clear':
+		return 'true'
+	return 'unsupported operations'
+
+
+def selfcheck_qtype_check(op,data):
+	if op == 'add' or op == 'delete':
+		if len(data) != 1:
+			return 'data feild num error'
+		if len(data['qtype']) == 0 or len(data['qtype']) > 20:
+			return 'qtype error'
+	elif op == 'query' or op == 'clear':
+		return 'true'
+	return 'unsupported operations'
+
+
+def selfcheck_response_check(op,data):
+	if op == 'add' or op == 'delete':
+		if len(data) != 1:
+			return 'data feild num error'
+		if data['responsecode'] < 1 or data['responsecode'] > 0xffffffff:
+			return 'responsecode value range error'
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
@@ -1554,21 +1539,59 @@ handle_check_methods = {
 		'switch': switch_check,
 		'rules': handle_tag_check
 	},
+	'selfcheck': {
+		'blackqtype': selfcheck_qtype_check,
+		'responserules': selfcheck_response_check
+	},
 	'backendmeter': {
 		'switch': switch_check,
 		'rules': meter_check
 	},
 	'stub': {
-		'rules': handle_xforce_check 
+		'rules': handle_stub_check 
 	}
 }
 
 
-def check_handle_data(data,method):
+def base_data_check(data,method):
+	if len(data) != 7:
+		return 'data feild num error'
+	if data['source'] != 'ms' and data['source'] != 'cli':
+		return 'source error'
+	if data['service'] != 'dns' and data['service'] != 'handle':
+		return 'service error'
+	if method == 'POST':
+		if data['op'] != 'add':
+			return 'op error'
+		if data['id'] < 0:
+			return 'id error'
+	elif method == 'PUT':
+		if data['op'] != 'update':
+			return 'op error'
+		if data['id'] < 0:
+			return 'id error'
+	elif method == 'DELETE':
+		if data['op'] != 'delete' and data['op'] != 'clear':
+			return 'op error'
+		if data['id'] < 0:
+			return 'id error'
+	elif method == 'GET':
+		if data['op'] != 'query':
+			return 'op error'
+	return 'true'	
+
+
+def check_data(data,method):
 	try:
 		res = base_data_check(data,method)
 		if res != 'true':
 			return res
+		if data['service'] == 'dns':
+			if data['bt'] not in dns_bt:
+				return 'bt error'
+			if data['sbt'] not in dns_sbt:
+				return 'sbt error'
+			return dns_check_methods[data['bt']][data['sbt']](data['op'],data['data'])
 		if data['bt'] not in handle_bt:
 			return 'handle bt error'
 		if data['sbt'] not in handle_sbt:
@@ -1577,5 +1600,61 @@ def check_handle_data(data,method):
 	except Exception as e:
 		logger.error(str(e))
 	return 'unknown error'	
+
+
+def file_check(data):
+	if len(data) != 1:
+		return 'data feild num error'
+	if is_name_80(data['file']) == False:
+		return 'file format error'
+	return 'true'	
+
+
+def handle_cache_check(data):
+	if len(data) != 3:
+		return 'data feild num error'
+	if is_handle_tag(data['handle']) is False:
+		return 'handle tag {} format error'.format(data['handle'])
+	if len(data['index']) > 0 and len(data['index']) <= 16:
+		for i in data['index']:
+			if i < 1 or i > 0xffffffff:
+				return 'index value range error'
+	if len(data['type']) > 0:
+		for i in data['type']:
+			if len(i) == 0 or len(i) > 20:
+				return 'type value error'
+	if(len(data['handle']) + len(data['index']) * 4 + len(data['type']) * 4 + 12) > 464:
+		return 'handle_len + index_len*4 + type_len*4 must <= 464'
+	return 'true'	
+
+
+handle_task_check_methods = {
+	'cachebackup': file_check,
+	'cacheimport': file_check,
+	'cachedelete': handle_cache_check,
+	'cachequery': handle_cache_check
+}
+
+
+# task 合法性校验
+def check_task(data):
+	try:
+		if len(data) != 4:
+			return 'data feild num error'
+		if data['source'] != 'ms' and data['source'] != 'cli':
+			return 'source error'
+		if data['service'] == 'handle':
+			return handle_task_check_methods[data['tasktype']](data['data'])
+		#elif data['service'] != 'dns':
+			#return dns_task_check_methods[data['tasktype']](data['data'])
+		return 'service error'
+	except Exception as e:
+		logger.error(str(e))
+	return 'unknown error'	
+
+
+
+
+
 
 

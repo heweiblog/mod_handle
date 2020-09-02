@@ -8,8 +8,30 @@
 + `*`: 跟在参数后面，表示必选
 + `N/A`: 描述参数时，表示不具备默认值
 + key是数据修改的依据，同一key下只有一条数据。
++ json数据中所有的key必须为小写，除了data字段外其他字段值均为小写，data字段某些的值严格区分大小写如证书信息
 
-## 1.2. URL规则
+## 1.2. 参数约束
+
+| 参数                  | 约束定义                                                     | 备注 |
+| --------------------- | ------------------------------------------------------------ | ---- |
+| handle string         | 1.小于等于**128**UTF字符,前后缀分割符"/"和handle节点分割符"."<br />2.不支持纯后缀 <br />3.前后缀分割符最多一个 <br />4.前后缀不能已“.”作为其实或结束 <br />5.前缀不能已“/”结尾<br /> 6.前后缀支持的特殊字符[_,-] <br />7.大小写不敏感 |      |
+| index                 | 1、4字节无符号整型<br />2、index数组中，index的个数不超过**16**个 |      |
+| type                  | 1、UTF8字符串数组 <br />2.单个字符串最长不超过**20**字节 <br />3.特殊字符支持[_,-] <br />4.大小写不敏感<br />5、type数组中，type的个数不超过**16**个 |      |
+| ipgroup               | 1. 小于等于80字节的UTF-8字符串<br />2.支持字符集[大小写字母+数字] <br />3.特殊支付支持[_,-] <br />4.大小写不敏感 |      |
+| proto                 | 1.枚举变量 handle [http, tcp,udp，https] DNS [tcp,udp] <br />2.大小写不敏感 |      |
+| port                  | 1、整形数，最小值1025，最大值65535                           |      |
+| ca_cert               | 1.小于等于2048字节的字符串 <br />2.字符集[26个大小写字母，数字, +，/, =] |      |
+| rsa_key               | 1.小于等于2048字节的字符串 <br />2.字符集[27个大小写字母，数字, +，/, =] |      |
+| ttl                   | 1.32位整型数                                                |      |
+| file                  | 1.小于等于200字节的字符串 <br />2.有效字符集[数字，26个大小字母] <br />3.不包含路径 |      |
+| handle+index[]+type[] | 1、handle字符串+index数组中所有数值字符串+type数组中所有type字符串拼接后的长度不超过**424**字节 |      |
+|                       |                                                              |      |
+|                       |                                                              |      |
+|                       |                                                              |      |
+
+
+
+## 1.3. URL规则
 
 + 格式：http(s)://ip:port/api/应用/版本[/模块...]/资源
 + 面向资源，网络上的任何内容都是资源，尽量不要出现动词，动作交给`method`
@@ -18,7 +40,7 @@
 + 路径定义后最好足够的直观，资源表现清晰
 + 命名中如果需要，使用`-`，而不是驼峰式
 
-## 1.3. HTTP方法
+## 1.4. HTTP方法
 
 - 增删改查使用：
 
@@ -29,9 +51,9 @@
 | PUT    | 在服务器上更新资源，表示覆盖(没有老数据同时传递过来时) |
 | DELETE | 从服务器上删除一项或多项资源                           |
 
-## 1.4. 配置接口
+## 1.5. 配置接口
 
-### 1.4.1. 配置下发接口
+### 1.5.1. 配置下发接口
 
 + 格式：{"contents":[{"source":"ms/cli","id":100,"bt":"xxx","sbt":"xxx","op":"add/delete/update/query/clear","data":{$DATA}}]}
 
@@ -44,8 +66,9 @@
 | sbt      | String | N/A    | 子业务类型                                                   |
 | op       | String | N/A    | 操作码，添加/删除/更新/请求/清空                             |
 | data     | Object | N/A    | 配置接口的具体数据，不同的"bt"/"sbt"，定义不同的data格式     |
+| service  | String | N/A    | 业务配置 “dns”：dns业务，“handle”：handle业务                |
 
-### 1.4.2. 配置接口返回数据
+### 1.5.2. 配置接口返回数据
 
 - 返回参数如下：
 
@@ -58,7 +81,7 @@
 - 删除一条不存在的记录也算作成功
 - 添加重复的记录也算作成功
 
-## 1.5. 任务接口
+## 1.6. 任务接口
 
 如下配置属于任务类配置，不需要EMS保持配置一致性。
 
@@ -69,7 +92,7 @@
 
 URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
-### 1.5.1. 任务添加接口
+### 1.6.1. 任务添加接口
 
 + 任务添加：
 
@@ -79,14 +102,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + 格式：{"contents":[{"source":"ms","tasktype":"$TYPE","data":{$DATA}}]}
 
-| 名称     | 类型   | 默认值 | 描述                                         |
-| -------- | ------ | ------ | -------------------------------------------- |
-| contents | Array  | N/A    | 任务接口的内容数据                           |
-| source   | String | N/A    | 配置数据来源。"ms":来自网管；"cli":来自CLI   |
-| tasktype | String | N/A    | 任务类型                                   |
-| data     | Object | N/A    | 具体任务数据。不同的任务类型，数据格式不同。 |
+| 名称     | 类型   | 默认值 | 描述                                          |
+| -------- | ------ | ------ | --------------------------------------------- |
+| contents | Array  | N/A    | 任务接口的内容数据                            |
+| source   | String | N/A    | 配置数据来源。"ms":来自网管；"cli":来自CLI    |
+| tasktype | String | N/A    | 任务类型                                      |
+| data     | Object | N/A    | 具体任务数据。不同的任务类型，数据格式不同。  |
+| service  | Object | N/A    | 业务配置 “dns”：dns业务，“handle”：handle业务 |
 
-### 1.5.2. 任务添加接口返回数据
+### 1.6.2. 任务添加接口返回数据
 
 - 返回参数如下：
 
@@ -96,13 +120,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 | description | String | N/A    | rcode的文字描述                                   |
 | taskid      | Int    | N/A    | 该任务ID。后续可调用API接口通过taskid查询任务状态 |
 
-### 1.5.3. 任务查询接口
+### 1.6.3. 任务查询接口
 
 + 任务查询：
 
-| op    | 方法 | URL                                                     | 描述               |
-| ----- | ---- | ------------------------------------------------------- | ------------------ |
-| query | GET  | http://$HOST:$PORT/handle/v1.0/internal/tasks?taskid=XX | 根据taskid查询任务 |
+| op    | 方法 | URL                                                  | 描述               |
+| ----- | ---- | ---------------------------------------------------- | ------------------ |
+| query | GET  | http://$HOST:$PORT/api/v1.0/internal/tasks?taskid=XX | 根据taskid查询任务 |
 
 - 格式：
 
@@ -112,7 +136,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 | description | String | N/A    | rcode的文字描述                                   |
 | taskid      | Int    | N/A    | 该任务ID。后续可调用API接口通过taskid查询任务状态 |
 
-### 1.5.4. 任务查询接口返回数据
+### 1.6.4. 任务查询接口返回数据
 
 + 格式：
 
@@ -127,6 +151,64 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 | endtime     | String | N/A    | 任务执行结束时间                                   |
 | result      | Array  | N/A    | 任务返回的具体结果。不同的tasktype，数据格式不同。 |
 
+## 1.7. 全量配置接口
+
++ URL
+
+  | URL                                                                | 方法  | 参数                               |
+  | ------------------------------------------------------------------ | ----- | ---------------------------------- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/all-configs?source=$source |  GET  | ms/ybind/proxy/xforward/recursion  |
+
++ 举例
+
+  ```python
+  URL：http://192.168.5.41:9999/api/v1.0/internal/all-configs?source=ms
+  METHOD:GET
+  BODY:无
+  get返回
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":1,
+              "service":"handle",
+              "bt":"useripwhitelist",
+              "sbt":"switch",
+              "op":"update",
+              "data":{
+                  "switch":"enable"
+              }
+          },
+          {
+              "source":"ms",
+              "id":2,
+              "service":"handle",
+              "bt":"useripwhitelist",
+              "sbt":"rules",
+              "op":"add",
+              "data":{
+                  "ipgroup":"shcmcc",
+                  "ip":"192.168.6.0/24"
+              }
+          },
+          {
+              "source":"ms",
+              "id":3,
+              "service":"handle",
+              "bt":"backend",
+              "sbt":"forwardserver",
+              "op":"add",
+              "data":{
+                  "group":"group1",
+                  "ip":"192.168.6.101",
+                  "proto":"udp",
+                  "port":2641
+              }
+          }
+      ]
+  }
+  ```
+
 # 2. Handle安全子系统
 
 ## 2.1. ACL
@@ -135,15 +217,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据 |
-  | -------- | -------- |
-  | GET/PUT  | 参考举例 |
+  | 请求方法            | 请求数据 |
+  | ------------------- | -------- |
+  | GET/PUT/POST/DELETE | 参考举例 |
 
 + bt/sbt字段定义
 
@@ -161,14 +243,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 + 举例
 
   ```python
-  URL：http://192.168.5.41:9999/handle/v1.0/internal/configs        
-  METHOD:PUT
+  URL：http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:PUT/POST/DELETE
   BODY:
   {
       "contents":[
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"switch",
               "op":"update",
@@ -178,13 +261,14 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           }
       ]
   }
-  put返回:
+  delete不执行任何动作
+  put/post/delete返回:
   {
   	"rcode":0,
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -192,6 +276,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"switch",
               "op":"query",
@@ -210,9 +295,9 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -237,7 +322,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 + 接口数据举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -245,6 +330,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"rules",
               "op":"add",
@@ -261,7 +347,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -269,6 +355,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"rules",
               "op":"delete",
@@ -285,7 +372,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -293,6 +380,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"rules",
               "op":"clear",
@@ -306,7 +394,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -314,6 +402,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"useripwhitelist",
               "sbt":"rules",
               "op":"query",
@@ -331,14 +420,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 ### 2.2.1. 功能开关
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+    | URL                                                | 描述 |
+    | -------------------------------------------------- | ---- |
+    | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
 
 + 方法
-    | 请求方法 | 请求数据  |
-    | -------- | --------- |
-    | GET/PUT  | 参考2.1.1 |
+
+    | 请求方法            | 请求数据  |
+    | ------------------- | --------- |
+    | GET/PUT/POST/DELETE | 参考2.1.1 |
     
 + bt/sbt字段定义
 
@@ -347,15 +437,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
     | bt   | ipthreshold |
     | sbt  | switch      |
 
-
-
 ### 2.2.2. 策略
 
 + URL
 
-    | URL                                                | 描述 |
-    | -------------------------------------------------- | ---- |
-    | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+    | URL                                             | 描述 |
+    | ----------------------------------------------- | ---- |
+    | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -375,12 +463,12 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
     | 名称  | 类型   | 默认值 | 描述             |
     | ----- | ------ | ------ | ---------------- |
     | ip    | String | N/A    | ipv4或ipv6地址段 |
-    | meter | Int    | N/A    | 限速阈值         |
+    | meter | Int    | N/A    | 限速阈值 0 < v <= 0xffffffff         |
     
 + 举例
 
     ```python
-    URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
     METHOD:POST
     BODY:
     {
@@ -388,6 +476,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
             {
                 "source":"ms",
                 "id":100,
+                "service":"handle",
                 "bt":"ipthreshold",
                 "sbt":"rules",
                 "op":"add",
@@ -399,7 +488,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
         ]
     }
     
-    URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
     METHOD:PUT
     BODY:
     {
@@ -407,6 +496,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
             {
                 "source":"ms",
                 "id":100,
+                "service":"handle",
                 "bt":"ipthreshold",
                 "sbt":"rules",
                 "op":"update",
@@ -418,7 +508,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
         ]
     }
     
-    URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
     METHOD:DELETE
     BODY:
     {
@@ -426,6 +516,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
             {
                 "source":"ms",
                 "id":100,
+                "service":"handle",
                 "bt":"ipthreshold",
                 "sbt":"rules",
                 "op":"delete",
@@ -437,7 +528,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
         ]
     }
     
-    URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
     METHOD:DELETE
     BODY:
     {
@@ -445,6 +536,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
             {
                 "source":"ms",
                 "id":100,
+                "service":"handle",
                 "bt":"ipthreshold",
                 "sbt":"rules",
                 "op":"clear",
@@ -460,7 +552,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
     }
     
     
-    URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
     METHOD:GET
     BODY:
     {
@@ -468,6 +560,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
             {
                 "source":"ms",
                 "id":100,
+                "service":"handle",
                 "bt":"ipthreshold",
                 "sbt":"rules",
                 "op":"query",
@@ -486,15 +579,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -508,9 +601,9 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -540,6 +633,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"handlethreshold",
               "sbt":"rules",
               "op":"add/update/delete/clear/query",
@@ -559,15 +653,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -580,9 +674,9 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -606,7 +700,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 + 举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -614,6 +708,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"srcipaccesscontrol",
               "sbt":"rules",
               "op":"add",
@@ -624,7 +719,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -632,6 +727,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"srcipaccesscontrol",
               "sbt":"rules",
               "op":"delete",
@@ -642,7 +738,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -650,6 +746,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"srcipaccesscontrol",
               "sbt":"rules",
               "op":"clear",
@@ -664,7 +761,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -672,6 +769,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"srcipaccesscontrol",
               "sbt":"rules",
               "op":"query",
@@ -690,15 +788,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -712,9 +810,9 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -733,12 +831,12 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
   | 名称   | 类型   | 默认值 | 描述       |
   | ------ | ------ | ------ | ---------- |
-  | handle | String | N/A    | handle标识 |
+  | handle | String | N/A    | handle标识 string的长度限制不超过128字节|
   
 + 举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -746,6 +844,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"handleaccesscontrol",
               "sbt":"rules",
               "op":"add",
@@ -756,7 +855,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -764,17 +863,18 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"handleaccesscontrol",
               "sbt":"rules",
               "op":"delete",
               "data":{
-                  "handle":"ncstrl.vatech_cs/*",
+                  "handle":"ncstrl.vatech_cs",
               }
           }
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -782,6 +882,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"handleaccesscontrol",
               "sbt":"rules",
               "op":"clear",
@@ -796,7 +897,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -804,6 +905,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"handleaccesscontrol",
               "sbt":"rules",
               "op":"query",
@@ -812,7 +914,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   get返回:
-  [{"handle":"ncstrl.vatech_cs/tr-93-35"},{"handle":"ncstrl.vatech_cs/*"}]
+  [{"handle":"ncstrl.vatech_cs/tr-93-35"},{"handle":"ncstrl.vatech_cs"}]
   ```
 
 
@@ -820,9 +922,9 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -843,13 +945,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | ----- | ------ | ------ | ----------------------- |
   | group | String | N/A    | 转发服务器组            |
   | ip    | String | N/A    | 转发服务器IPV4/IPV6地址 |
-  | proto | String | N/A    | 转发服务器服务协议      |
+  | proto | String | N/A    | 转发服务器服务协议 如：udp tcp http https等     |
   | port  | Int    | N/A    | 转发服务器服务端口      |
 
 + 接口数据举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -857,6 +959,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"backend",
               "sbt":"forwardserver",
               "op":"add",
@@ -870,7 +973,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -878,6 +981,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"backend",
               "sbt":"forwardserver",
               "op":"delete",
@@ -891,7 +995,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -899,6 +1003,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"backend",
               "sbt":"forwardserver",
               "op":"clear",
@@ -913,7 +1018,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -921,6 +1026,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"backend",
               "sbt":"forwardserver",
               "op":"query",
@@ -941,15 +1047,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 +  方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -963,15 +1069,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 +  方法
 
-  | 请求方法        | 请求数据     |
-  | --------------- | ------------ |
-  | GET/DELETE/POST | 参考下列举例 |
+  | 请求方法        | 请求数据     |       key            |
+  | --------------- | ------------ | -------------------- |
+  | GET/PUT/DELETE/POST | 参考下列举例 | proto+ipv4+ipv6+port |
 
 + bt/sbt字段定义
 
@@ -993,7 +1099,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 + 举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -1001,6 +1107,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"businessproto",
               "sbt":"rules",
               "op":"add",
@@ -1008,14 +1115,37 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
                   "proto":"tcp",
                   "action":"disable",
                   "port":2641,
-                  "ipv4":["192.168.6.100","192.168.6.101"],
-                  "ipv6":[]
+                  "ipv4":["192.168.6.100"],
+                  "ipv6":[],
+              }
+          }
+      ]
+  }
+ 
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:PUTT
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"businessproto",
+              "sbt":"rules",
+              "op":"update",
+              "data":{
+                  "proto":"tcp",
+                  "action":"enable",
+                  "port":2641,
+                  "ipv4":["192.168.6.100"],
+                  "ipv6":[],
               }
           }
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -1023,6 +1153,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"businessproto",
               "sbt":"rules",
               "op":"delete",
@@ -1037,7 +1168,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -1045,6 +1176,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"businessproto",
               "sbt":"rules",
               "op":"clear",
@@ -1053,13 +1185,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  post/delete返回:
+  post/put/delete返回:
   {
   	"rcode":0,
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -1067,6 +1199,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"businessproto",
               "sbt":"rules",
               "op":"query",
@@ -1085,13 +1218,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
   | URL                                             | 描述 |
   | ----------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/dns/v1.0/internal/configs |      |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -1106,7 +1239,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
   | URL                                             | 描述 |
   | ----------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/dns/v1.0/internal/configs |      |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -1125,20 +1258,45 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
   | 名称   | 类型   | 默认值 | 描述                     |
   | ------ | ------ | ------ | ------------------------ |
-  | proto  | String | N/A    | 协议，例如：tcp、udp     |
+  | proto  | String | N/A    | 协议，例如：tcp udp http     |
   | action | String | N/A    | 执行动作，enable/disable |
   | port   | Int    | N/A    | 端口                     |
   | ipv4   | List   | N/A    | ipv4业务ip地址数组       |
   | ipv6   | List   | N/A    | ipv6业务ip地址数组       |
+
++ 接口数据举例
+
+  ```
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "bt":"businessproto",
+              "sbt":"rules",
+              "op":"add",
+              "data":{
+                  "proto":"tcp",
+                  "action":"disable",
+                  "port":53,
+                  "ipv4":["192.168.6.100"],
+                  "ipv6":[],
+              }
+          }
+      ]
+  }
+  ```
+
++ 返回值
 
 
 ## 4.5. CA证书管理
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
@@ -1157,13 +1315,13 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
   | 名称    | 类型   | 默认值 | 描述                 |
   | ------- | ------ | ------ | -------------------- |
-  | ca_cert | String | N/A    | 证书信息，BASE64转码 |
-  | rsa_key | String | N/A    | 私钥，BASE64转码     |
+  | ca_cert | String | N/A    | 证书信息，BASE64转码 0 < 长度 <= 2048 |
+  | rsa_key | String | N/A    | 私钥，BASE64转码 0 < 长度 <= 2048    |
   
 + 举例
 
   ```python
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:POST
   BODY:
   {
@@ -1171,6 +1329,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"certificate",
               "sbt":"rules",
               "op":"add",
@@ -1180,7 +1339,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -1188,6 +1347,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"certificate",
               "sbt":"rules",
               "op":"delete",
@@ -1197,7 +1357,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       ]
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:DELETE
   BODY:
   {
@@ -1205,6 +1365,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"certificate",
               "sbt":"rules",
               "op":"clear",
@@ -1219,7 +1380,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   	"description":"recevied"
   }
   
-  URL:http://192.168.5.41:9999/handle/v1.0/internal/configs        
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
   METHOD:GET
   BODY:
   {
@@ -1227,6 +1388,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"certificate",
               "sbt":"rules",
               "op":"query",
@@ -1248,15 +1410,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法 | 请求数据  |
-  | -------- | --------- |
-  | GET/PUT  | 参考2.1.1 |
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -1269,15 +1431,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
 
 + 方法
 
-  | 请求方法            | 请求数据     |
-  | ------------------- | ------------ |
-  | GET/PUT/POST/DELETE | 参考下列举例 |
+  | 请求方法            | 请求数据     | key               |
+  | ------------------- | ------------ |-------------------|
+  | GET/PUT/POST/DELETE | 参考下列举例 | handle+index+type |
 
 + bt/sbt字段定义
 
@@ -1291,88 +1453,214 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | 名称   | 类型   | 默认值 | 描述                                         |
   | ------ | ------ | ------ | -------------------------------------------- |
   | handle | String | N/A    | handle标识                                   |
-  | ttl    | Int    | N/A    | ttl，绝对时间                                |
-  | index  | Int    | N/A    | handle index值                               |
-  | type   | String | N/A    | handle type值                                |
-  | data   | String | N/A    | handle value值，不同的type，data字段格式不同 |
+  | rcode  | Int    | N/A    | responsecode                                 |
+  | index  | Array  | N/A    | handle index数组                             |
+  | type   | Array  | N/A    | handle type数组                              |
+  | values | Array  | N/A    | value数组，不同的type，字段格式不同          |
+  | ttl    | Int  | N/A    | ttl                             |
+  | timestamp | Int   | N/A    | 4字节无符号int,表示从1970开始的秒数          |
   
 + 接口数据举例
 
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "id":100,
-              "bt":"xforce",
-              "sbt":"rules",
-              "op":"add",
-              "data":{
-                  "handle":"ncstrl.vatech_cs/tr-93-35",
-                  "ttl":86400,
-                  "index":10,
-                  "type":"url",
-                  "data":"http://www.handle.net"
-              }
-          },
-          {
-              "source":"ms",
-              "id":101,
-              "bt":"xforce",
-              "sbt":"rules",
-              "op":"add",
-              "data":{
-                  "handle":"ncstrl.vatech_cs/*",
-                  "ttl":86400,
-                  "index":3,
-                  "type":"hs_site",
-                  "data":{
-                  	"version":1,
-                  	"protoversion":"2.10",
-                  	"serialnum":2,
-                  	"primarymask":192,
-                  	"hashoption":2,
-                  	"hashfilter":0,
-                  	"attrlist":"doi oak",
-                  	"serverlist":[
-                  		{
-                  			"serverid":1,
-                  			"address":"38.100.138.133",
-                  			"publickey":{
-                  				"type":"HS_DSAKEY",
-                  				"key":"iQCuR2R",
-                  			},
-                  			"serviceinterface":[
-                  				{
-                  					"type":3,
-                  					"transproto":1,
-                  					"port":2641,
-                  				},
-                  				{
-                  					"type":2,
-                  					"transproto":0,
-                  					"port":2641,
-                  				},
-                  			],
-                  		},
-                  	],
-                  },
-              }
-          }
-      ]
-  }
-  ```
+    ```python
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+    METHOD:POST
+    BODY:
+    {
+        "contents":[
+            {
+                "source":"ms",
+                "id":101,
+                "service":"handle",
+                "bt":"xforce",
+                "sbt":"rules",
+                "op":"add",
+                "data":{
+                    "handle":"ncstrl.vatech_cs",
+                    "index":[1,2],
+                    "type":["EMAIL","URL"],
+                    "rcode":1,
+                    "ttl": 86400,
+                    "timestamp": 1598861080,
+                    "values": [
+                    {
+                        "index": 1,
+                        "type": "EMAIL",
+                        "data": {
+                            "format": "string",
+                            "value": "hdladmin@cnri.reston.va.us"
+                        }
+                    },
+                    {
+                        "index": 2,
+                        "type": "URL",
+                        "data": {
+                            "format": "string",
+                            "value": "http://www.handle.net"
+                        }
+                    }
+                    ]
+                }
+            }
+        ]
+    }
+    
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+    METHOD:PUT
+    BODY:
+    {
+        "contents":[
+            {
+                "source":"ms",
+                "id":101,
+                "service":"handle",
+                "bt":"xforce",
+                "sbt":"rules",
+                "op":"update",
+                "data":{
+                    "handle":"ncstrl.vatech_cs",
+                    "index":[1,2],
+                    "type":["EMAIL","URL"],
+                    "rcode":1,
+                    "ttl": 86400,
+                    "timestamp": 1598861080,
+                    "values": [
+                    {
+                        "index": 1,
+                        "type": "EMAIL",
+                        "data": {
+                            "format": "string",
+                            "value": "xxxxn@cnri.reston.va.us"
+                        }
+                    },
+                    {
+                        "index": 2,
+                        "type": "URL",
+                        "data": {
+                            "format": "string",
+                            "value": "http://www.xxxx.net"
+                        }
+                    }
+                    ]
+                }
+            }
+        ]
+    }
 
-  
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+    METHOD:DELETE
+    BODY:
+    {
+        "contents":[
+            {
+                "source":"ms",
+                "id":101,
+                "service":"handle",
+                "bt":"xforce",
+                "sbt":"rules",
+                "op":"delete",
+                "data":{
+                    "handle":"ncstrl.vatech_cs",
+                    "index":[1,2],
+                    "type":["EMAIL","URL"],
+                    "rcode":1,
+                    "ttl": 86400,
+                    "timestamp": 1598861080,
+                    "values": [
+                    {
+                        "index": 1,
+                        "type": "EMAIL",
+                        "data": {
+                            "format": "string",
+                            "value": "xxxxn@cnri.reston.va.us"
+                        }
+                    },
+                    {
+                        "index": 2,
+                        "type": "URL",
+                        "data": {
+                            "format": "string",
+                            "value": "http://www.xxxx.net"
+                        }
+                    }
+                    ]
+                }
+            }
+        ]
+    }
+    
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+    METHOD:DELETE
+    BODY:
+    {
+        "contents":[
+            {
+                "source":"ms",
+                "id":100,
+                "service":"handle",
+                "bt":"xforce",
+                "sbt":"rules",
+                "op":"clear",
+                "data":{}
+            }
+    }
+    
+    post/delete返回:
+    {
+        "rcode":0,
+        "description":"recevied"
+    }
+    ```
 
-+ 返回值
 
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
+    URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+    METHOD:GET
+    BODY:
+    {
+        "contents":[
+            {
+                "source":"ms",
+                "id":100,
+                "service":"handle",
+                "bt":"xforce",
+                "sbt":"rules",
+                "op":"query",
+                "data":{}
+            }
+        ]
+    }
+    
+    get返回:
+    [
+    {
+        "handle":"ncstrl.vatech_cs",
+        "index":[1,2],
+        "type":["EMAIL","URL"],
+        "rcode":1,
+        "ttl": 86400,
+        "timestamp": 1598861080,
+        "values": [
+        {
+            "index": 1,
+            "type": "EMAIL",
+            "data": {
+                "format": "string",
+                "value": "hdladmin@cnri.reston.va.us"
+            }
+        },
+        {
+            "index": 2,
+            "type": "URL",
+            "data": {
+                "format": "string",
+                "value": "http://www.handle.net"
+            }
+        }
+        ]
+    }
+    ]
+    ```
+
 
 ## 5.2. 缓存智能更新
 
@@ -1380,10 +1668,14 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
++  方法
 
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 + bt/sbt字段定义
 
   | 名称 | value            |
@@ -1391,40 +1683,6 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | bt   | cachesmartupdate |
   | sbt  | switch           |
 
-+ data字段定义
-
-  | 名称   | 类型   | 默认值 | 描述                            |
-  | ------ | ------ | ------ | ------------------------------- |
-  | switch | String | enable | 功能开关，值为：enable或disable |
-
-+ 接口数据举例
-
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "id":100,
-              "bt":"cachesmartupdate",
-              "sbt":"switch",
-              "op":"add",
-              "data":{
-                  "switch":"enable"
-              }
-          }
-      ]
-  }
-  ```
-
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
 
 ## 5.3. 缓存预取
 
@@ -1432,10 +1690,14 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
++  方法
 
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/PUT/POST/DELETE | 参考2.1.1 |
 + bt/sbt字段定义
 
   | 名称 | value         |
@@ -1443,48 +1705,20 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | bt   | cacheprefetch |
   | sbt  | switch        |
 
-+ data字段定义
-
-  | 名称   | 类型   | 默认值  | 描述                            |
-  | ------ | ------ | ------- | ------------------------------- |
-  | switch | String | disable | 功能开关，值为：enable或disable |
-
-+ 接口数据举例
-
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "id":100,
-              "bt":"cacheprefetch",
-              "sbt":"switch",
-              "op":"add",
-              "data":{
-                  "switch":"enable"
-              }
-          }
-      ]
-  }
-  ```
-
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
 
 ### 5.3.2. 策略
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法 | 请求数据  |
+  | -------- | --------- |
+  | GET/PUT  | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -1498,70 +1732,44 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | 名称   | 类型   | 默认值 | 描述       |
   | ------ | ------ | ------ | ---------- |
   | handle | String | N/A    | handle标识 |
-  |        |        |        |            |
-
-+ 接口数据举例
-
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "id":100,
-              "bt":"cacheprefetch",
-              "sbt":"rules",
-              "op":"add",
-              "data":{
-                  "handle":"ncstrl.vatech_cs/tr-93-35",
-              }
-          },
-          {
-              "source":"ms",
-              "id":101,
-              "bt":"cacheprefetch",
-              "sbt":"rules",
-              "op":"add",
-              "data":{
-                  "handle":"ncstrl.vatech/*",
-              }
-          }
-      ]
-  }
-  ```
-
-  
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
 
 ## 5.4. 缓存备份
 
 + URL
 
-  | URL                                              | 描述 |
-  | ------------------------------------------------ | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/tasks |      |
+  | URL                                           | 描述 |
+  | --------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/tasks |      |
+
++ 方法
+
+  | 请求方法        | 请求数据     |
+  | --------------- | ------------ |
+  | GET/POST/DELETE | 参考下列举例 |
+
++ tasktype字段定义
+
+  | 名称     | 类型   | 值          |
+  | -------- | ------ | ----------- |
+  | tasktype | String | cachebackup |
 
 + data字段定义
 
   | 名称 | 类型   | 默认值 | 描述         |
   | ---- | ------ | ------ | ------------ |
   | file | String | N/A    | 备份的文件名 |
-  |      |        |        |              |
-
+  
 + 接口数据举例
 
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks      
+  METHOD:POST
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
+              "service":"handle",
               "tasktype":"cachebackup",
               "data":{
                   "file":"202008072217123",
@@ -1569,72 +1777,70 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           },
       ]
   }
-  ```
-  
-  
-  
-+ 返回值
-
-  ```
+  post返回：
   {
   	"rcode":0,
   	"description":"recevied",
   	"taskid":1
   }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks?taskid=1
+  METHOD:DELETE
+  BODY:无
+  delete返回：
+  {
+  	"rcode":0,
+  	"description":"success"
+  }
   ```
+  
 
 ## 5.5. 缓存导入
 
 + URL
 
-  | URL                                              | 描述 |
-  | ------------------------------------------------ | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/tasks |      |
+  | URL                                           | 描述 |
+  | --------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/tasks |      |
+
++ 方法
+
+  | 请求方法        | 请求数据    |
+  | --------------- | ----------- |
+  | GET/POST/DELETE | 参考5.4举例 |
+
++ tasktype字段定义
+
+  | 名称     | 类型   | 值          |
+  | -------- | ------ | ----------- |
+  | tasktype | String | cacheimport |
 
 + data字段定义
 
   | 名称 | 类型   | 默认值 | 描述         |
   | ---- | ------ | ------ | ------------ |
   | file | String | N/A    | 备份的文件名 |
-  |      |        |        |              |
-
-+ 接口数据举例
-
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "tasktype":"cacheimport",
-              "data":{
-                  "file":"202008072217123",
-              }
-          },
-      ]
-  }
-  ```
-
   
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied",
-  	"taskid":2
-  }
-  ```
-
-
 
 ## 5.6. 缓存查询
 
 + URL
 
-  | URL                                              | 描述 |
-  | ------------------------------------------------ | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/tasks |      |
+  | URL                                           | 描述 |
+  | --------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/tasks |      |
+
++ 方法
+
+    | 请求方法        | 请求数据     |
+    | --------------- | ------------ |
+    | GET/POST/DELETE | 参考下列举例 |
+
++ tasktype字段定义
+
+    | 名称     | 类型   | 值         |
+    | -------- | ------ | ---------- |
+    | tasktype | String | cachequery |
 
 + data字段定义
 
@@ -1646,11 +1852,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + 接口数据举例
 
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks      
+  METHOD:POST
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
+              "service":"handle",
               "tasktype":"cachequery",
               "data":{
               	"handle":"10.serv/crossref",
@@ -1660,25 +1870,27 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           },
       ]
   }
-  ```
-
-
-+ 返回值
-
-  ```
+  
+  post返回：
   {
   	"rcode":0,
   	"description":"recevied",
   	"taskid":2
   }
-  ```
-
   
-
-+ 缓存查询taskid返回值
-
-  ```
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks?taskid=2
+  METHOD:DELETE
+  BODY:无
+  delete返回：
+  {
+  	"rcode":0,
+  	"description":"success"
+  }
   
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks?taskid=2
+  METHOD:GET
+  BODY:无
+  get返回：
   {
   	"rcode":0,
   	"description":"cache query successful",
@@ -1687,7 +1899,7 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
       "status":"Complete",
       "startTime":"2020/06/22 09:51:10",
       "endTime":"2020/06/22 09:52:10"
-  	"result":[
+  	"result":
   		{
   		"handle": "10.serv/crossref",
   		"values": [
@@ -2289,20 +2501,29 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   			"timestamp": "2018-01-26T20:09:50Z"
   			}
   		]
-  		}
-  	],	
+  	}
   }
   ```
-
-
 
 ## 5.7. 缓存删除
 
 + URL
 
-  | URL                                              | 描述 |
-  | ------------------------------------------------ | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/tasks |      |
+  | URL                                           | 描述 |
+  | --------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/tasks |      |
+
++ 方法
+
+    | 请求方法        | 请求数据     |
+    | --------------- | ------------ |
+    | GET/POST/DELETE | 参考下列举例 |
+
++ tasktype字段定义
+
+    | 名称     | 类型   | 值          |
+    | -------- | ------ | ----------- |
+    | tasktype | String | cachedelete |
 
 + data字段定义
 
@@ -2314,11 +2535,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + 接口数据举例
 
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks      
+  METHOD:POST
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
+              "service":"handle",
               "tasktype":"cachedelete",
               "data":{
               	"handle":"10.serv/crossref",
@@ -2328,20 +2553,22 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           },
       ]
   }
-  ```
-
-
-+ 返回值
-
-  ```
+  post返回:
   {
   	"rcode":0,
   	"description":"recevied",
   	"taskid":3
   }
-  ```
-
   
+  URL:http://192.168.5.41:9999/api/v1.0/internal/tasks?taskid=3     
+  METHOD:DELETE
+  BODY:无
+  delete返回:
+  {
+  	"rcode":0,
+  	"description":"success",
+  }
+  ```
 
 ## 5.8. 应答结果检查
 
@@ -2349,9 +2576,15 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/POST/DELETE/PUT | 参考2.1.1 |
 
 + bt/sbt字段定义
 
@@ -2360,95 +2593,235 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | bt   | selfcheck |
   | sbt  | switch    |
 
+### 5.8.2. 请求类型黑名单
+
+* 注意项：
+  * 策略条目不能超过16
+
++ URL
+
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法        | 请求数据     |
+  | --------------- | ------------ |
+  | GET/POST/DELETE | 参考下列举例 |
+
++ bt/sbt字段定义
+
+  | 名称 | value      |
+  | ---- | ---------- |
+  | bt   | selfcheck  |
+  | sbt  | blackqtype |
+
 + data字段定义
 
-  | 名称   | 类型   | 默认值  | 描述                            |
-  | ------ | ------ | ------- | ------------------------------- |
-  | switch | String | disable | 功能开关，值为：enable或disable |
+  | 名称  | 类型   | 默认值 | 描述           |
+  | ----- | ------ | ------ | -------------- |
+  | qtype | String | N/A    | handle标识类型 |
 
-+ 接口数据举例
++ 举例
 
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:POST
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"selfcheck",
-              "sbt":"switch",
+              "sbt":"blackqtype",
               "op":"add",
               "data":{
-                  "switch":"enable"
+                  "qtype":"url",
               }
           }
       ]
   }
-  ```
-
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
-
-### 5.8.2. 策略
-
-+ URL
-
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
-
-+ bt/sbt字段定义
-
-  | 名称 | value     |
-  | ---- | --------- |
-  | bt   | selfcheck |
-  | sbt  | rules     |
-
-+ data字段定义
-
-  | 名称         | 类型   | 默认值 | 描述                                           |
-  | ------------ | ------ | ------ | ---------------------------------------------- |
-  | type         | String | N/A    | handle标识类型                                 |
-  | responsecode | Int    | 1      | handle应答结果返回码，默认保存"successful"应答 |
-
-+ 接口数据举例
-
-  ```
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:DELETE
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"selfcheck",
-              "sbt":"rules",
+              "sbt":"blackqtype",
+              "op":"delete",
+              "data":{
+                  "qtype":"url",
+              }
+          }
+      ]
+  }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:DELETE
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"blackqtype",
+              "op":"clear",
+              "data":{}
+          }
+      ]
+  }
+  
+  post/delete返回:
+  {
+  	"rcode":0,
+  	"description":"recevied"
+  }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:GET
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"blackqtype",
+              "op":"query",
+              "data":{}
+          }
+      ]
+  }
+  get返回:
+  [{"qtype":"url"}]
+  ```
+
+### 5.8.3. 应答类型策略
+
+* 注意项：
+	* 策略条目不能超过16
+
++ URL
+
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法        | 请求数据     |
+  | --------------- | ------------ |
+  | GET/POST/DELETE | 参考下列举例 |
+
++ bt/sbt字段定义
+
+  | 名称 | value         |
+  | ---- | ------------- |
+  | bt   | selfcheck     |
+  | sbt  | responserules |
+
++ data字段定义
+
+  | 名称         | 类型 | 默认值 | 描述                                           |
+  | ------------ | ---- | ------ | ---------------------------------------------- |
+  | responsecode | Int  | 1      | handle应答结果返回码，默认保存"successful"应答 |
+
++ 举例
+
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:POST
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"responserules",
               "op":"add",
               "data":{
-                  "type":"url",
                   "responsecode":1
               }
           }
       ]
   }
-  ```
-
   
-
-+ 返回值
-
-  ```
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:DELETE
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"responserules",
+              "op":"delete",
+              "data":{
+                  "responsecode":1
+              }
+          }
+      ]
+  }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:DELETE
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"responserules",
+              "op":"clear",
+              "data":{}
+          }
+      ]
+  }
+  
+  post/delete返回:
   {
   	"rcode":0,
   	"description":"recevied"
   }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:GET
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"selfcheck",
+              "sbt":"responserules",
+              "op":"query",
+              "data":{}
+          }
+      ]
+  }
+  get返回:
+  [{"responsecode":1}]
   ```
 
-## 
+
 
 ## 5.9. 后端限速
 
@@ -2460,6 +2833,12 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | -------------------------------------------------- | ---- |
   | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
 
++ 方法
+
+  | 请求方法            | 请求数据  |
+  | ------------------- | --------- |
+  | GET/POST/DELETE/PUT | 参考2.1.1 |
+
 + bt/sbt字段定义
 
   | 名称 | value        |
@@ -2467,48 +2846,20 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | bt   | backendmeter |
   | sbt  | switch       |
 
-+ data字段定义
-
-  | 名称   | 类型   | 默认值  | 描述                            |
-  | ------ | ------ | ------- | ------------------------------- |
-  | switch | String | disable | 功能开关，值为：enable或disable |
-
-+ 接口数据举例
-
-  ```
-  {
-      "contents":[
-          {
-              "source":"ms",
-              "id":100,
-              "bt":"backendmeter",
-              "sbt":"switch",
-              "op":"add",
-              "data":{
-                  "switch":"enable"
-              }
-          }
-      ]
-  }
-  ```
-
-
-+ 返回值
-
-  ```
-  {
-  	"rcode":0,
-  	"description":"recevied"
-  }
-  ```
 
 ### 5.9.2. 后端限速策略
 
 + URL
 
-  | URL                                                | 描述 |
-  | -------------------------------------------------- | ---- |
-  | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+  | URL                                             | 描述 |
+  | ----------------------------------------------- | ---- |
+  | http(s)://$HOST:$PORT/api/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法            | 请求数据     |
+  | ------------------- | ------------ |
+  | GET/POST/DELETE/PUT | 参考下列举例 |
 
 + bt/sbt字段定义
 
@@ -2522,39 +2873,54 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | 名称  | 类型 | 默认值 | 描述           |
   | ----- | ---- | ------ | -------------- |
   | meter | Int  | N/A    | 未命中限速阈值 |
-  |       |      |        |                |
 
-+ 接口数据举例
-
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:POST/PUT/DELETE
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
               "id":100,
+              "service":"handle",
               "bt":"backendmeter",
               "sbt":"rules",
-              "op":"add",
+              "op":"add/update/delete",
               "data":{
-                  "meter":1000
+                  "meter":1000,
               }
           }
       ]
   }
-  ```
-
-  
-
-+ 返回值
-
-  ```
+  delete不执行任何动作
+  post/update/delete返回:
   {
   	"rcode":0,
   	"description":"recevied"
   }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:GET
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":100,
+              "service":"handle",
+              "bt":"backendmeter",
+              "sbt":"rules",
+              "op":"query",
+              "data":{}
+          }
+      ]
+  }
+  get返回:
+  {"meter":1000}
   ```
 
-
+  
 
 # 6. 递归子系统
 
@@ -2565,6 +2931,12 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | URL                                                | 描述 |
   | -------------------------------------------------- | ---- |
   | http(s)://$HOST:$PORT/handle/v1.0/internal/configs |      |
+
++ 方法
+
+  | 请求方法        | 请求数据     | key         |
+  | --------------- | ------------ | ----------- |
+  | GET/POST/DELETE | 参考下列举例 | handle+type+index |
 
 + bt/sbt字段定义
 
@@ -2581,22 +2953,31 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
   | ttl    | Int    | N/A    | ttl，绝对时间                                |
   | index  | Int    | N/A    | handle index值                               |
   | type   | String | N/A    | handle type值                                |
-  | data   | String | N/A    | handle value值，不同的type，data字段格式不同 |
-  |        |        |        |                                              |
+  | data   | Object | N/A    | handle value值，不同的type，data字段格式不同 |
+  
++ 注：
 
+  + data中type和transproto取值如下
+  + type: int类型, 0 = "out-of-service", 1 = "Admin", 2 = "Query", 3 = "Admin & Query"
+  + transproto: int类型, 0 = "UDP" 1 = "TCP", 2 = "HTTP", 3 = "HTTPS"
+  
 + 接口数据举例
 
-  ```
+  ```python
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:POST
+  BODY:
   {
       "contents":[
           {
               "source":"ms",
               "id":101,
+              "service":"handle",
               "bt":"stub",
               "sbt":"rules",
               "op":"add",
               "data":{
-                  "handle":"ncstrl.vatech_cs/*",
+                  "handle":"ncstrl.vatech_cs",
                   "ttl":86400,
                   "index":3,
                   "type":"hs_site",
@@ -2635,16 +3016,169 @@ URL格式：http(s)://$HOST:$PORT/handle/v1.0/internal/tasks
           }
       ]
   }
-  ```
-
-+ 返回值
-
-  ```
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:PUT
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":101,
+              "service":"handle",
+              "bt":"stub",
+              "sbt":"rules",
+              "op":"update",
+              "data":{
+                  "handle":"ncstrl.vatech_cs",
+                  "ttl":8000,
+                  "index":3,
+                  "type":"hs_site",
+                  "data":{
+                  	"version":1,
+                  	"protoversion":"2.10",
+                  	"serialnum":2,
+                  	"primarymask":192,
+                  	"hashoption":2,
+                  	"hashfilter":0,
+                  	"attrlist":"doi oak",
+                  	"serverlist":[
+                  		{
+                  			"serverid":1,
+                  			"address":"38.100.138.133",
+                  			"publickey":{
+                  				"type":"HS_DSAKEY",
+                  				"key":"iQCuR2R",
+                  			},
+                  			"serviceinterface":[
+                  				{
+                  					"type":3,
+                  					"transproto":1,
+                  					"port":2641,
+                  				},
+                  				{
+                  					"type":2,
+                  					"transproto":0,
+                  					"port":2641,
+                  				},
+                  			],
+                  		},
+                  	],
+                  },
+              }
+          }
+      ]
+  }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:DELETE
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":101,
+              "service":"handle",
+              "bt":"stub",
+              "sbt":"rules",
+              "op":"delete",
+              "data":{
+                  "handle":"ncstrl.vatech_cs",
+                  "ttl":86400,
+                  "index":3,
+                  "type":"hs_site",
+                  "data":{
+                  	"version":1,
+                  	"protoversion":"2.10",
+                  	"serialnum":2,
+                  	"primarymask":192,
+                  	"hashoption":2,
+                  	"hashfilter":0,
+                  	"attrlist":"doi oak",
+                  	"serverlist":[
+                  		{
+                  			"serverid":1,
+                  			"address":"38.100.138.133",
+                  			"publickey":{
+                  				"type":"HS_DSAKEY",
+                  				"key":"iQCuR2R",
+                  			},
+                  			"serviceinterface":[
+                  				{
+                  					"type":3,
+                  					"transproto":1,
+                  					"port":2641,
+                  				},
+                  				{
+                  					"type":2,
+                  					"transproto":0,
+                  					"port":2641,
+                  				},
+                  			],
+                  		},
+                  	],
+                  },
+              }
+          }
+      ]
+  }
+  
+  post/update/delete返回:
   {
   	"rcode":0,
   	"description":"recevied"
   }
+  
+  URL:http://192.168.5.41:9999/api/v1.0/internal/configs        
+  METHOD:GET
+  BODY:
+  {
+      "contents":[
+          {
+              "source":"ms",
+              "id":101,
+              "service":"handle",
+              "bt":"stub",
+              "sbt":"rules",
+              "op":"delete",
+              "data":{}
+          }
+      ]
+  }
+  get返回:
+  [
+  {
+  	"version":1,
+  	"protoversion":"2.10",
+  	"serialnum":2,
+  	"primarymask":192,
+  	"hashoption":2,
+  	"attrlist":"doi oak",
+  	"serverlist":[
+  	{
+          "serverid":1,
+          "address":"38.100.138.133",
+          "publickey":{
+  			"type":"HS_DSAKEY",
+              "key":"iQCuR2R",
+           },
+           "serviceinterface":
+           [
+           {
+           	"type":3,
+           	"transproto":1,
+           	"port":2641,
+           },
+           {
+           	"type":2,
+           	"transproto":0,
+              "port":2641,
+           }
+           ]
+  }
+  ]
   ```
+
 
 ## 6.2. 健康检查
 
