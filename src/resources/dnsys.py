@@ -32,13 +32,26 @@ sbt_code = {
 	'cachedisable': {
 		'bt': 0x11,
 		'switch': 0x0401,
+		'viewdisable': 0x0402,
 		'srcipdisable': 0x0403,
 		'domaindisable': 0x0404,
 		'domainblacklist': 0x0407 
 	},
+	'expiredactivate': {
+		'bt': 0x11,
+		'switch': 0x0205,
+	},
 	'amplificationattack': {
 		'bt': 0x13,
-		'switch': 0x050e
+		'switch': 0x050e,
+		'maxanswerlen': 0x050f,
+		'qpsthreshold': 0x0510
+	},
+	'poisonprotect': {
+		'bt': 0x13,
+		'switch': 0x0601,
+		'x20': 0x0602,
+		'linkage': 0x0603
 	},
 	'ipthreshold': {
 		'bt': 0x13,
@@ -54,25 +67,50 @@ sbt_code = {
 		'rules': 0x050a
 	},
 	'useripwhitelist': {
+		'bt':0x13,
 		'switch': 0x0201,
-		'rules': 0x0202,
+		'rules': 0x0202
 	},
 	'rrset': {
 		'bt': 0x12,
 		'switch': 0x0101,
 		'rules': 0x0102,
-		'srcipblacklist': 0x0104,
+		'srcipblacklist': 0x0104
 	},
 	'nxr': {
+		'bt': 0x14,
 		'switch': 0x0201,
 		'redirectip': 0x0203,
 		'domainblacklist': 0x0205,
 		'srcipblacklist': 0x0204
+	},
+	'ttl': {
+		'bt': 0x11,
+		'switch': 0x0301,
+		'rules': 0
+	},
+	'graydomainaccesscontrol': {
+		'bt': 0x12,
+		'switch': 0x0201,
+		'rules': 0x0204,
+		'odds': 0x0202,
+		'redirectip': 0x0203
+	},
+	'importdnameprotect': {
+		'bt': 0x13,
+		'switch': 0x0f11,
+		'rules': 0x0f12
+	},
+	'dts': {
+		'bt': 0x18,
+		'switch': 0x0101,
+		'domaingroup': 0x0103,
+		'gtldomain': 0x0104
 	}
 }
 
 def switch_map(data):
-	if data['switch'] == 'enable':
+	if data['data']['switch'] == 'enable':
 		return (0x01).to_bytes(1, byteorder='big')
 	return (0x00).to_bytes(1, byteorder='big')
 
@@ -82,92 +120,134 @@ def num_map(num,byte):
 
 
 def ip_map(data):
-	if '.' in data['ip']:
-		return (0x04).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET,data['ip'])
-	return (0x06).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET6,data['ip'])
+	if '.' in data['data']['ip']:
+		return (0x04).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET,data['data']['ip'])
+	return (0x06).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET6,data['data']['ip'])
 
 
 def ip_mask_map(data):
-	l = data['ip'].split('/')
-	if '.' in data['ip']:
+	l = data['data']['ip'].split('/')
+	if '.' in data['data']['ip']:
 		return (0x04).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET,l[0]) + (int(l[-1])).to_bytes(1, byteorder='big')
 	return (0x06).to_bytes(1, byteorder='big') + socket.inet_pton(socket.AF_INET6,l[0]) + (int(l[-1])).to_bytes(1, byteorder='big')
 
 
-def qtype_map(data):
-	return (qtypes[data['qtype']]).to_bytes(2, byteorder='big')
-
-
-def weight_map(data):
-	return (data['weight']).to_bytes(1, byteorder='big')
-
-
-def ttl_map(data):
-	return (data['ttl']).to_bytes(4, byteorder='big')
+def qtype_map(qtype):
+	return (qtypes[qtype]).to_bytes(2, byteorder='big')
 
 
 def domain_map(data):
-	return data['domain'].encode() + (0x00).to_bytes(1, byteorder='big')
+	return data['data']['domain'].encode() + (0x00).to_bytes(1, byteorder='big')
 
 
 def threshold_map(data):
-	return num_map(data['threshold'],4)
+	return num_map(data['data']['threshold'],4)
+
+
+def odds_map(data):
+	return num_map(data['data']['odds'],4)
+
+
+def answerlen_map(data):
+	return num_map(data['data']['maxlen'],4)
 
 
 def ip_threshold_map(data):
-	return num_map(data['threshold'],4) + ip_mask_map(data)
+	if data['op'] == 'delete':
+		return ip_mask_map(data)
+	return num_map(data['data']['threshold'],4) + ip_mask_map(data)
 	
 
 def domain_threshold_map(data):
-	return num_map(data['threshold'],4) + domain_map(data)
+	if data['op'] == 'delete':
+		return domain_map(data)
+	return num_map(data['data']['threshold'],4) + domain_map(data)
 
 
 def ip_domain_threshold_map(data):
-	return num_map(data['threshold'],4) + ip_mask_map(data) + domain_map(data)
+	if data['op'] == 'delete':
+		return ip_mask_map(data) + domain_map(data)
+	return num_map(data['data']['threshold'],4) + ip_mask_map(data) + domain_map(data)
 
 
 def answer_map(data):
 	#根据不同应答产生不同结果
-	if data['qtype'] == 'a' or data['qtype'] == 'aaaa':
-		if is_ip(data['answer']):
-			ip = ip_map({'ip':data['answer']})
-			return (len(ip)).to_bytes(2, byteorder='big') + ip
-		domain = domain_map({'domain':data['answer']})
-		return (len(domain)).to_bytes(2, byteorder='big') + domain
-	elif data['qtype'] == 'cname' or data['qtype'] == 'ns':
-		domain = domain_map({'domain':data['answer']})
-		return (len(domain)).to_bytes(2, byteorder='big') + domain
-	elif data['qtype'] == 'mx':
-		mx = data['answer'].split('@')
-		res = (int(mx[0])).to_bytes(2, byteorder='big') + domain_map({'domain':mx[1]}) 
-		return (len(res)).to_bytes(2, byteorder='big') + res
-	elif 'srv' == qtype:
-		srv = data['answer'].split('@')
-		res = (int(srv[0])).to_bytes(2, byteorder='big') + (int(srv[1])).to_bytes(2, byteorder='big') + (int(srv[2])).to_bytes(2, byteorder='big') + domain_map({'domain':srv[3]})
-		return (len(res)).to_bytes(2, byteorder='big') + res
-	elif 'naptr' == qtype:
-		ptr = data['answer'].split('@')
-		res = (int(ptr[0])).to_bytes(2, byteorder='big') + (int(ptr[1])).to_bytes(2, byteorder='big') + ptr[2].encode() +  ptr[3].encode() + ptr[4].encode() + domain_map({'domain':ptr[5]})
-		return (len(res)).to_bytes(2, byteorder='big') + res
+	qtype = data['data']['qtype']
+	if qtype == 'a' or qtype == 'aaaa':
+		if is_ip(data['data']['answer']):
+			ip = ip_map({'data':{'ip':data['data']['answer']}})
+			return num_map(len(ip),2)  + ip
+		domain = domain_map({'data':{'domain':data['data']['answer']}})
+		return num_map(len(domain),2) + domain
+	elif qtype == 'cname' or qtype == 'ns':
+		domain = domain_map({'data':{'domain':data['data']['answer']}})
+		return num_map(len(domain),2) + domain
+	elif qtype == 'mx':
+		mx = data['data']['answer'].split('@')
+		res = num_map(int(mx[0]),2) + domain_map({'data':{'domain':mx[1]}}) 
+		return num_map(len(res),2) + res
+	elif qtype == 'srv':
+		srv = data['data']['answer'].split('@')
+		res = num_map(int(srv[0]),2) + num_map(int(srv[1]),2) + num_map(int(srv[2]),2) + domain_map({'data':{'domain':srv[3]}})
+		return num_map(len(res),2) + res
+	elif qtype == 'naptr':
+		ptr = data['data']['answer'].split('@')
+		res = num_map(int(ptr[0]),2) + num_map(int(ptr[1]),2) + ptr[2].encode() +  ptr[3].encode() + ptr[4].encode() + domain_map({'data':{'domain':ptr[5]}})
+		return num_map(len(res),2) + res
 
 
 def rrset_map(data):
-	return ip_mask_map({'ip':'0.0.0.0/0'}) + qtype_map(data) + domain_map(data) + weight_map(data) + ttl_map(data) + answer_map(data) 
+	return ip_mask_map({'data':{'ip':'0.0.0.0/0'}}) + qtype_map(data['data']['qtype']) + domain_map(data) + num_map(data['data']['weight'],1) + num_map(data['data']['ttl'],4) + answer_map(data) 
 	
 
-def nxr_redirect_ip_map(data):
-	return num_map(data['weight'],1) + ip_map(data)
+def redirect_ip_map(data):
+	if data['op'] == 'delete':
+		return ip_map(data)
+	# 获取odds
+	return num_map(10,1) + domain_map(data)
+
+
+def ttl_rules_map(data):
+	if data['data']['domain'] == '*':
+		return num_map(data['data']['minttl'],4) + num_map(data['data']['maxttl'],4) 
+	if data['op'] == 'delete':
+		return domain_map(data)
+	return num_map(data['data']['minttl'],4) + num_map(data['data']['maxttl'],4) + domain_map(data)
+
+
+def gray_rules_map(data):
+	if data['op'] == 'delete':
+		return domain_map(data)
+	return num_map(data['data']['weight'],1) + ip_map(data)
+
+
+def import_dname_map(data):
+	if data['op'] == 'delete':
+		return domain_map(data) + qtype_map(data)
+	qtype = data['data']['qtype'].lower()
+	return domain_map(data) + qtype_map(data) + ip_map(data)  if qtype == 'a' or qtype == 'aaaa' else domain_map(data)
 
 
 dnsys_data_methods = {
 	'cachedisable': {
 		'switch': switch_map,
+		'viewdisable': switch_map,
 		'srcipdisable': ip_mask_map,
 		'domaindisable': domain_map,
 		'domainblacklist': domain_map
 	},
+	'expiredactivate': {
+		'switch': switch_map,
+	},
 	'amplificationattack': {
 		'switch': switch_map,
+		'maxanswerlen': answerlen_map,
+		'qpsthreshold': threshold_map
+	},
+	'poisonprotect': {
+		'switch': switch_map,
+		'x20': switch_map,
+		'linkage': switch_map
 	},
 	'ipthreshold': {
 		'rules': ip_threshold_map,
@@ -194,9 +274,42 @@ dnsys_data_methods = {
 	},
 	'nxr': {
 		'switch': switch_map,
-		'redirectip': nxr_redirect_ip_map,
+		'redirectip': redirect_ip_map,
 		'domainblacklist': domain_map,
 		'srcipblacklist': ip_mask_map
+	},
+	'ttl': {
+		'switch': switch_map,
+		'rules': ttl_rules_map
+	},
+	'graydomainaccesscontrol': {
+		'switch': switch_map,
+		'odds': odds_map,
+		'rules': gray_rules_map,
+		'redirectip': redirect_ip_map
+	},
+	'importdnameprotect': {
+		'switch': switch_map,
+		'rules': import_dname_map
+	},
+	'dts': {
+		'switch': switch_map,
+		'domaingroup': domain_map,
+		'gtldomain': domain_map,
+	}
+}
+
+
+# 只有域策略支持清空  当domain为*表示配置全局ttl
+def ttl_code_map(data):
+	if 'domain' in data['data'] and data['data']['domain'] == '*':
+		return 0x0302
+	return 0x0303
+	
+
+diff_code = {
+	'ttl':{
+		'rules': ttl_code_map
 	}
 }
 
@@ -208,13 +321,13 @@ def dnsys_data_map(data):
 		dt = (0x01).to_bytes(1, byteorder='big')
 		did = (0x01).to_bytes(1, byteorder='big')
 		bt = (sbt_code[data['bt']]['bt']).to_bytes(1, byteorder='big')
-		sbt = (sbt_code[data['bt']][data['sbt']]).to_bytes(2, byteorder='big')
+		sbt = (sbt_code[data['bt']][data['sbt']] if sbt_code[data['bt']][data['sbt']] != 0 else diff_code[data['bt']][data['sbt']](data)).to_bytes(2, byteorder='big')
 		op = op_code[data['op']]
 		opt = (0x00).to_bytes(7, byteorder='big')
 		if data['op'] == 'clear':
 			bl = (0x00).to_bytes(4, byteorder='big')
 			return ver+cid+dt+did+bt+sbt+op+bl+opt
-		body = dnsys_data_methods[data['bt']][data['sbt']](data['data'])
+		body = dnsys_data_methods[data['bt']][data['sbt']](data)
 		bl = (6+len(body)).to_bytes(4, byteorder='big')
 		ul = (4+len(body)).to_bytes(2, byteorder='big')
 		sn = (data['id']).to_bytes(4, byteorder='big')

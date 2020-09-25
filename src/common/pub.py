@@ -7,20 +7,18 @@ from common.conf import crm_cfg
 
 version = '1.0.3'
 
-fpga_bt = ['iptables', 'ipfragment', 'dnsipfragment', 'icmpflood', 'tcpflood', 'udpflood', 'creditdname', 'backendthreshold', 'replythreshold', 'spreadecho', 'dts', 'iptrans']
+fpga_bt = {'iptables', 'ipfragment', 'dnsipfragment', 'icmpflood', 'tcpflood', 'udpflood', 'creditdname', 'backendthreshold', 'replythreshold', 'spreadecho', 'dts', 'iptrans'}
 
-ybind_bt = ['poisonprotect', 'importdnameprotect', 'rrfilter', 'forward', 'edns', 'stub', 'dns64', 'rootconfig']
+ybind_bt = {'poisonprotect', 'importdnameprotect', 'rrfilter', 'forward', 'edns', 'stub', 'dns64', 'rootconfig', 'rootcopy'}
 
-handle_bt = {'useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backend','businessservice','businessproto','certificate','xforce',
+xforward_bt = {'backend','businessservice','businessproto','xforce','cachesmartupdate','cacheprefetch','selfcheck'}
+
+proxy_bt  = {'useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backend','businessservice','businessproto','certificate','xforce',
 			'cachesmartupdate','cacheprefetch','selfcheck','backendmeter','stub'}
 
-proxy_bt = []
+kernel_bt = {'useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backendmeter'}
 
-xforward_bt = []
-
-proxy_xforward_bt = ['backend','businessservice','certificate','xforce','cachesmartupdate','cacheprefetch','selfcheck','stub']
-
-kernel_bt = ['useripwhitelist','ipthreshold','handlethreshold','srcipaccesscontrol','handleaccesscontrol','backendmeter']
+recursion_bt = {'healthdetect','loadbalance','trusted'}
 
 dnsys_addr = (crm_cfg['crm']['ip'], int(crm_cfg['crm']['port']))
 

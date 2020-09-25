@@ -24,6 +24,16 @@ def get_nxr_redirect_ip(data):
 	return to_dict_list(NxrRedirectIp.query.all())
 
 
+def nxr_redirect_ip_exist(data):
+	try:
+		t = NxrRedirectIp.query.filter(and_(NxrRedirectIp.ip==data['data']['ip'],NxrRedirectIp.view==data['data']['view'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改nxr重定向ip
 def modify_nxr_redirect_ip(data):
 	try:
@@ -92,7 +102,7 @@ class Sortlist(db.Model):
 	def get_dict(self):
 		return {'domain': self.domain, 'view': self.view, 'sortlist': json.loads(self.sortlist)}
 	def to_dict(self):
-		return {'source':'ms','id':0,'bt':'sortlist','sbt':'rules','op':'add','data':self.get_dict()}
+		return {'source':'ms','service':'dns','id':0,'bt':'sortlist','sbt':'rules','op':'add','data':self.get_dict()}
 
 
 def get_all_sortlist():
@@ -121,6 +131,16 @@ def get_sortlist(data):
 	except Exception as e:
 		logger.warning(str(e))
 	return None
+
+
+def sortlist_exist(data):
+	try:
+		t = Sortlist.query.filter(and_(Sortlist.domain==data['data']['domain'],Sortlist.view==data['data']['view'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改sortlist
@@ -296,6 +316,16 @@ def get_view_qtype(data):
 	return to_dict_list(CacheQtype.query.all())
 
 
+def view_qtype_exist(data):
+	try:
+		t = CacheQtype.query.filter(and_(CacheQtype.view==data['data']['view'],CacheQtype.qtype==data['data']['qtype'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加view qtype
 def add_view_qtype(data):
 	try:
@@ -362,6 +392,16 @@ class Ttl(db.Model):
 # 获取所有ttl
 def get_ttl(data):
 	return to_dict_list(Ttl.query.all())
+
+
+def ttl_exist(data):
+	try:
+		t = Ttl.query.filter(and_(Ttl.view==data['data']['view'],Ttl.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改ttl
@@ -441,6 +481,16 @@ def get_rrset(data):
 	return to_dict_list(Rrset.query.all())
 
 
+def rrset_exist(data):
+	try:
+		t = Rrset.query.filter(and_(Rrset.view==data['data']['view'],Rrset.qtype==data['data']['qtype'],Rrset.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改rrset
 def modify_rrset(data):
 	try:
@@ -513,6 +563,16 @@ class Rrfilter(db.Model):
 # 获取所有rrfilter
 def get_rrfilter(data):
 	return to_dict_list(Rrfilter.query.all())
+
+
+def rrfilter_exist(data):
+	try:
+		t = Rrfilter.query.filter(and_(Rrfilter.view==data['data']['view'],Rrfilter.qtype==data['data']['qtype'],Rrfilter.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改rrfilter

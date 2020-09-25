@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import queue
-task_queue = queue.Queue()
+dns_queue = queue.Queue()
 handle_queue = queue.Queue()
+task_queue = queue.Queue()
 
 

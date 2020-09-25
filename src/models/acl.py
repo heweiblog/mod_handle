@@ -69,6 +69,16 @@ def get_src_ip_list(data):
 	return l
 
 
+def src_ip_list_exist(data):
+	try:
+		t = SrcIpList.query.filter(and_(SrcIpList.group==data['data']['ipgroup'],SrcIpList.ip==data['data']['ip'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加 src ip list
 def add_src_ip_list(data):
 	try:
@@ -163,6 +173,16 @@ def get_dst_ip_list(data):
 	if len(l) == 0:
 		return None
 	return l
+
+
+def dst_ip_list_exist(data):
+	try:
+		t = DstIpList.query.filter(and_(DstIpList.group==data['data']['groupname'],DstIpList.ip==data['data']['ip'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加 dst ip list
@@ -260,6 +280,16 @@ def get_acl_domain_list(data):
 	return l
 
 
+def add_acl_domain_list(data):
+	try:
+		t = AclDomainList.query.filter(and_(AclDomainList.group==data['data']['domaingroup'],AclDomainList.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加 acl domain list
 def add_acl_domain_list(data):
 	try:
@@ -320,12 +350,12 @@ def get_all_acl():
 	l = []
 	src = to_acl_dict_list(SrcIpList.query.all())
 	for i in src:
-		l.append({'source':'ms','id':0,'bt':'acl','sbt':'iplist','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'acl','sbt':'iplist','op':'add','data':i})
 	dst = to_acl_dict_list(DstIpList.query.all())
 	for i in dst:
-		l.append({'source':'ms','id':0,'bt':'acl','sbt':'dstiplist','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'acl','sbt':'dstiplist','op':'add','data':i})
 	dom = to_acl_dict_list(AclDomainList.query.all())
 	for i in dom:
-		l.append({'source':'ms','id':0,'bt':'acl','sbt':'domainlist','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'acl','sbt':'domainlist','op':'add','data':i})
 	return l
 

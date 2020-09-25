@@ -272,6 +272,66 @@ dts_domain_group_methods = {
 }
 
 
+class DtsForwardMap(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	group = db.Column(db.String(80), nullable=False)
+
+	def __init__(self, group):
+		self.group = group
+
+
+def get_dts_forward_id(name):
+	try:
+		t = DtsForwardMap.query.filter_by(group=name).first()
+		if t is not None:
+			return t.id
+	except Exception as e:
+		logger.error(str(e))
+	return 0
+
+
+def add_dts_forward_map(name):
+	try:
+		t = DtsForwardMap.query.filter_by(group=name).first()
+		if t is None:
+			s = DtsForwardMap.query.filter_by(group=DEFAULTGROUP).first()
+			if s is not None:
+				s.group = name
+				db.session.commit()
+			else:
+				t = DtsForwardMap(name)
+				db.session.add(t)
+				db.session.commit()
+		return True
+	except Exception as e:
+		logger.error(str(e))
+	return False
+
+
+def del_dts_forward_map(name):
+	try:
+		t = DtsForwardMap.query.filter_by(group=name).first()
+		if t is not None:
+			t.group = DEFAULTGROUP
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.error(str(e))
+	return False
+
+
+def clear_dts_forward_map():
+	try:
+		rules = DtsForwardMap.query.all()
+		if rules is not None:
+			for t in rules:
+				t.group = DEFAULTGROUP
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.error(str(e))
+
+
 class DtsForwardGroup(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	ip = db.Column(db.String(60), nullable=False)
@@ -287,6 +347,16 @@ class DtsForwardGroup(db.Model):
 # 获取所有的dts_forward_group
 def get_dts_forward_group(data):
 	return to_dict_list(DtsForwardGroup.query.all())
+
+
+def dts_forward_group_exist(data):
+	try:
+		t = DtsForwardGroup.query.filter(and_(DtsForwardGroup.ip==data['data']['ip'],DtsForwardGroup.serverGroup==data['data']['servergroup'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改dts_forward_group
@@ -369,6 +439,18 @@ class DtsFilter(db.Model):
 # 获取所有的DTS过滤器
 def get_dts_filter(data):
 	return to_dict_list(DtsFilter.query.all())
+
+
+def dts_filter_exist(data):
+	try:
+		data = data['data']
+		t = DtsFilter.query.filter(and_(DtsFilter.filterName == data['filtername'], DtsFilter.srcGroup == data['srcgroup'], DtsFilter.dstGroup == data['dstgroup'], \
+		DtsFilter.domainGroup == data['domaingroup'], DtsFilter.gtld == data['gtld'], DtsFilter.rd == data['rd'], DtsFilter.creditDname == data['creditdname'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改DTS过滤器
@@ -547,13 +629,13 @@ def get_all_dts():
 	l = []
 	src = to_dts_dict_list(DtsSrcIpGroup.query.all())
 	for i in src:
-		l.append({'source':'ms','id':0,'bt':'dts','sbt':'srcipgroup','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'dts','sbt':'srcipgroup','op':'add','data':i})
 	dst = to_dts_dict_list(DtsDstIpGroup.query.all())
 	for i in dst:
-		l.append({'source':'ms','id':0,'bt':'dts','sbt':'dstipgroup','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'dts','sbt':'dstipgroup','op':'add','data':i})
 	dom = to_dts_dict_list(DtsDomainGroup.query.all())
 	for i in dom:
-		l.append({'source':'ms','id':0,'bt':'dts','sbt':'domaingroup','op':'add','data':i})
+		l.append({'source':'ms','service':'dns','id':0,'bt':'dts','sbt':'domaingroup','op':'add','data':i})
 	return l + to_no_bt_dict_list('dts','forwardserver',DtsForwardGroup.query.all()) + to_no_bt_dict_list('dts','dtsfilter',DtsFilter.query.all())
 
 	

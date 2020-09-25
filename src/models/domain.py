@@ -18,6 +18,16 @@ def get_credit_dname(data):
 	return to_dict_list(CreditDname.query.all())
 
 
+def credit_dname_exist(data):
+	try:
+		p = CreditDname.query.filter_by(dname=data['data']['dname']).first()
+		if p is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加授信域名
 def add_credit_dname(data):
 	try:
@@ -79,6 +89,16 @@ class DomainAccessControl(db.Model):
 # 获取所有域名访问控制列表
 def get_domain_access_control(data):
 	return to_dict_list(DomainAccessControl.query.all())
+
+
+def domain_access_control_exist(data):
+	try:
+		t = DomainAccessControl.query.filter_by(domain=data['data']['domain']).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改域名访问控制列表
@@ -151,6 +171,16 @@ def get_ip_domain_access_control(data):
 	return to_dict_list(IpDomainAccessControl.query.all())
 
 
+def ip_domain_access_control_exist(data):
+	try:
+		t = IpDomainAccessControl.query.filter(and_(IpDomainAccessControl.ip==data['data']['ip'],IpDomainAccessControl.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改ip域名访问控制列表
 def modify_ip_domain_access_control(data):
 	try:
@@ -221,6 +251,16 @@ def get_domain_qtype_access_control(data):
 	return to_dict_list(DomainQtypeAccessControl.query.all())
 
 
+def domain_qtype_access_control_exist(data):
+	try:
+		t = DomainQtypeAccessControl.query.filter(and_(DomainQtypeAccessControl.qtype==data['data']['qtype'],DomainQtypeAccessControl.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改qtype域名访问控制列表
 def modify_domain_qtype_access_control(data):
 	try:
@@ -289,6 +329,16 @@ def get_qtype_access_control(data):
 	return to_dict_list(QtypeAccessControl.query.all())
 
 
+def qtype_access_control_exist(data):
+	try:
+		t = QtypeAccessControl.query.filter_by(qtype=data['data']['qtype']).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改请求类型访问控制列表
 def modify_qtype_access_control(data):
 	try:
@@ -355,6 +405,16 @@ class GrayDomainAccessControl(db.Model):
 # 获取所有灰色域名访问控制列表
 def get_gray_domain_access_control(data):
 	return to_dict_list(GrayDomainAccessControl.query.all())
+
+
+def gray_domain_access_control_exist(data):
+	try:
+		t = GrayDomainAccessControl.query.filter_by(domain=data['data']['domain']).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改灰色域名访问控制列表
@@ -431,6 +491,16 @@ def get_import_dname(data):
 	return to_dict_list(ImportDnameProtect.query.all())
 
 
+def import_dname_exist(data):
+	try:
+		t = ImportDnameProtect.query.filter(and_(ImportDnameProtect.qtype==data['data']['qtype'],ImportDnameProtect.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改重点域名保障
 def modify_import_dname(data):
 	try:
@@ -501,6 +571,16 @@ class DomainList(db.Model):
 # 获取域名列表
 def get_domain_list(data):
 	return to_dict_list(DomainList.query.filter(and_(DomainList.bt==data['bt'],DomainList.sbt==data['sbt'])).all())
+
+
+def domain_list_exist(data):
+	try:
+		t = DomainList.query.filter(and_(DomainList.bt==data['bt'],DomainList.sbt==data['sbt'],DomainList.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加域名列表

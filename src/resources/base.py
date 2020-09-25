@@ -1,16 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import json,time,asyncio,aiohttp,socket
+import threading,json,time,asyncio,aiohttp,socket,requests
 from common.log import logger,conf_logger
 from common.check import check_data
-from common.queue import task_queue,handle_queue
+from common.queue import dns_queue,handle_queue,task_queue
 from common.conf import crm_cfg
-from common.pub import ybind_bt,fpga_bt,dnsys_addr,proxy_bt,xforward_bt,kernel_bt,proxy_xforward_bt
+from common.pub import ybind_bt,fpga_bt,dnsys_addr,proxy_bt,xforward_bt,recursion_bt,kernel_bt
 
 from resources.ybind import ybind_map
+from resources.task import do_task
 from resources.dnsys import dnsys_data_map,dnsys_result_check
-from models import content,switch,iptables,proto,threshold,domain,ip,view,acl,dts,bind,handle
+from models import content,switch,iptables,proto,threshold,domain,ip,view,acl,dts,bind,handle,register
 
 
 loop = asyncio.get_event_loop()
@@ -230,6 +231,9 @@ dns_db_methods = {
 	},
 	'rootconfig': {
 		'rootconfig': bind.stub_methods
+	},
+	'rootcopy': {
+		'rules': ip.rootcopy_methods
 	}
 
 }
@@ -387,8 +391,8 @@ def get_all_conf():
 
 def main_task():
 	while True:
-		while task_queue.empty() is not True:
-			data = task_queue.get()
+		while dns_queue.empty() is not True:
+			data = dns_queue.get()
 			task = loop.create_task(pub_conf(data))
 			loop.run_until_complete(task)
 		time.sleep(0.1)
@@ -418,10 +422,8 @@ def handle_data(data,method):
 			res = check_data(i, method)
 			if res == 'true':
 				if i['service'] == 'dns':
-					task_queue.put(i)
-					#dns_list.append(i)
+					dns_queue.put(i)
 				else:
-					#handle_queue.put(i)
 					handle_list.append(i)
 			elif res == 'done':
 				conf_logger.info('conf success: data: {}'.format(data))
@@ -432,37 +434,34 @@ def handle_data(data,method):
 		if len(handle_list) > 0:
 			contents = {'contents':handle_list}
 			handle_queue.put(contents)
-		#if len(dns_list) > 0:
-			#contents = {'contents':dns_list}
-			#task_queue.put(contents)
 
 
 handle_db_methods = {
 	'useripwhitelist': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_ip_group_methods
 	},
 	'ipthreshold': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.ip_meter_methods
 	}, 
 	'handlethreshold': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_tag_meter_methods
 	}, 
 	'srcipaccesscontrol': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_ip_list_methods
 	},
 	'handleaccesscontrol': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_tag_list_methods
 	},
 	'backend': {
 		'forwardserver': handle.handle_forward_server_methods
 	},
 	'businessservice': {
-		'switch': switch.handle_switch_methods
+		'switch': handle.handle_switch_methods
 	},
 	'businessproto': {
 		'rules': handle.handle_proto_methods
@@ -471,26 +470,36 @@ handle_db_methods = {
 		'rules': handle.handle_ca_methods
 	},
 	'xforce':{
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_xforce_methods
 	},
 	'cachesmartupdate': {
-		'switch': switch.handle_switch_methods
+		'switch': handle.handle_switch_methods
 	},
 	'cacheprefetch':{
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.handle_tag_list_methods
 	},
 	'selfcheck': {
-		'blackqtype': handle.selfcheck_qtype_methods,
+		'switch': handle.handle_switch_methods,
+		'blackqtype': handle.handle_string_methods,
 		'responserules': handle.selfcheck_response_methods
 	},
 	'backendmeter': {
-		'switch': switch.handle_switch_methods,
+		'switch': handle.handle_switch_methods,
 		'rules': handle.total_meter_methods
 	},
 	'stub': {
-		'rules': handle.handle_xforce_methods
+		'rules': handle.handle_stub_methods
+	},
+	'healthdetect':{
+		'config': handle.handle_health_methods
+	},
+	'loadbalance':{
+		'algorithm': handle.loadbalance_methods
+	},
+	'trusted':{
+		'switch': handle.handle_switch_methods
 	}
 }
 
@@ -499,7 +508,7 @@ async def conf_kernel(client,data):
 	return [{'id':i['id'], 'status':'success', 'msg':''} for i in data['contents']]
 
 
-async def conf_xforward_or_proxy(url,client,data):
+async def conf_agent(url,client,data):
 	try:
 		async with client.post(url, json = data, timeout = 10) as resp:
 			return await resp.json()
@@ -511,7 +520,6 @@ async def conf_xforward_or_proxy(url,client,data):
 def change_data(data):
 	res = {}
 	for i in data:
-		print(i)
 		res[i['id']] = i
 	return res
 
@@ -566,29 +574,32 @@ def cmp_update_db(data,proxy_res,xforward_res):
 async def pub_handle_conf(data):
 	bt = data['contents'][0]['bt']
 	async with aiohttp.ClientSession() as client:
-		if bt in proxy_xforward_bt:
-			proxy_res = await conf_xforward_or_proxy(crm_cfg['proxy']['conf_url'],client,data)
-			xforward_res = await conf_xforward_or_proxy(crm_cfg['xforward']['conf_url'],client,data)
-			conf_logger.debug('recv data from proxy: {}'.format(proxy_res))
-			conf_logger.debug('recv data from xforward: {}'.format(xforward_res))
+		if (bt in proxy_bt and 'proxy' in crm_cfg and 'conf_url' in crm_cfg['proxy']) and (bt in xforward_bt and 'xforward' in crm_cfg and 'conf_url' in crm_cfg['xforward']):
+			proxy_res = await conf_agent(crm_cfg['proxy']['conf_url'],client,data)
+			xforward_res = await conf_agent(crm_cfg['xforward']['conf_url'],client,data)
+			conf_logger.debug('recv data from proxy: {} xforward:{}'.format(proxy_res,xforward_res))
 			return cmp_update_db(data['contents'],proxy_res,xforward_res)
+		if bt in proxy_bt and 'proxy' in crm_cfg and 'conf_url' in crm_cfg['proxy']:
+			res = await conf_agent(crm_cfg['proxy']['conf_url'],client,data)
+			conf_logger.debug('recv data from proxy: {}'.format(res))
+			update_db(data['contents'],res)
+			return res
+		elif bt in xforward_bt and 'xforward' in crm_cfg and 'conf_url' in crm_cfg['xforward']:
+			res = await conf_agent(crm_cfg['xforward']['conf_url'],client,data)
+			conf_logger.debug('recv data from xforward: {}'.format(res))
+			update_db(data['contents'],res)
+			return res
+		elif bt in recursion_bt and 'recursion' in crm_cfg and 'conf_url' in crm_cfg['recursion']:
+			res = await conf_agent(crm_cfg['recursion']['conf_url'],client,data)
+			conf_logger.debug('recv data from recursion: {}'.format(res))
+			update_db(data['contents'],res)
+			return res
 		elif bt in kernel_bt:
-			kernel_res = await conf_kernel(client,data)
-			conf_logger.debug('recv data from kernel: {}'.format(kernel_res))
-			update_db(data['contents'],kernel_res)
-			return kernel_res
-		elif bt in proxy_bt:
-			proxy_res = await conf_xforward_or_proxy(crm_cfg['proxy']['conf_url'],client,data)
-			conf_logger.debug('recv data from proxy: {}'.format(proxy_res))
-			update_db(data['contents'],proxy_res)
-			return proxy_res
-		elif bt in xforward_bt:
-			xforward_res = await conf_xforward_or_proxy(crm_cfg['xforward']['conf_url'],client,data)
-			conf_logger.debug('recv data from xforward: {}'.format(xforward_res))
-			update_db(data['contents'],xforward_res)
-			return xforward_res
-		else:
 			res = [{'id':i['id'], 'status':'success', 'msg':''} for i in data['contents']]
+			update_db(data['contents'],res)
+			return res
+		else:
+			res = [{'id':i['id'], 'status':'failed', 'msg':'no module register or conf url error'} for i in data['contents']]
 			update_db(data['contents'],res)
 			return res
 
@@ -601,7 +612,8 @@ def handle_sync_data(data,method):
 			res = check_data(i, method)
 			if res == 'true':
 				if i['service'] == 'dns':
-					dns_list.append(i)
+					#dns_list.append(i)
+					dns_queue.put(i)
 				else:
 					handle_list.append(i)
 			elif res == 'done':
@@ -614,24 +626,12 @@ def handle_sync_data(data,method):
 				content.add_oplog(i, 'fail', res)
 				r = {'id':i['id'], 'status': 'fail', 'description': res}
 				result.append(r)
-		task = sync_loop.create_task(pub_conf({'contents':dns_list})) if data['contents'][0]['service'] == 'dns' else sync_loop.create_task(pub_handle_conf({'contents':handle_list}))
-		sync_loop.run_until_complete(task)
-		res = task.result()
-		return json.dumps(result+res),200,{"Content-Type":"application/json"}
+		if len(handle_list) > 0:
+			task = sync_loop.create_task(pub_handle_conf({'contents':handle_list}))
+			sync_loop.run_until_complete(task)
+			res = task.result()
+			return json.dumps(result+res),200,{"Content-Type":"application/json"}
 
-
-def get_all_handle_conf():
-	l = handle.get_all_handle()
-	for i in range(len(l)):
-		l[i]['id'] = i+1
-	return l
-
-
-def get_all_proxy_conf():
-	l = handle.get_all_proxy_handle()
-	for i in range(len(l)):
-		l[i]['id'] = i+1
-	return l
 
 
 def handle_main_task():
@@ -642,6 +642,98 @@ def handle_main_task():
 			handle_loop.run_until_complete(task)
 		time.sleep(0.1)
 
+
+def gen_conf(l):
+	for i in range(len(l)):
+		l[i]['id'] = i+1
+	return l
+
+
+def get_url(data,ip):
+	url = {}
+	ip = ip[7:] if '::ffff:' == ip[:7] else ip
+	url['ip'] = ip
+	url['port'] = data['port']
+	url['conf_url'] = 'http://{}:{}{}'.format(ip,data['port'],data['conf_url'])
+	url['task_url'] = 'http://{}:{}{}'.format(ip,data['port'],data['task_url'])
+	return url
+
+
+def handle_register(source,data,ip):
+	if source == 'ms':
+		return {'contents': gen_conf(handle.get_all_handle())}
+	elif source == 'proxy':
+		crm_cfg['proxy'] = get_url(data,ip)
+		register.put_register('proxy',crm_cfg['proxy'])
+		conf_logger.info('proxy register: {}'.format(crm_cfg['proxy']))
+		return {'contents': gen_conf(handle.get_all_proxy_handle())}
+	elif source == 'xforward':
+		crm_cfg['xforward'] = get_url(data,ip)
+		register.put_register('xforward',crm_cfg['xforward'])
+		conf_logger.info('xforward register: {}'.format(crm_cfg['xforward']))
+		return {'contents': gen_conf(handle.get_all_xforward_handle())}
+	elif source == 'recursion':
+		crm_cfg['recursion'] = get_url(data,ip)
+		register.put_register('recursion',crm_cfg['recursion'])
+		conf_logger.info('recursion register: {}'.format(crm_cfg['recursion']))
+		return {'contents': gen_conf(handle.get_all_recursion_handle())}
+
+
+# 心跳测试
+def beat_connect(ip,port):
+	try:
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.settimeout(5)
+		sock.connect((ip, port))
+		sock.close()
+		return True
+	except Exception as e:
+		conf_logger.error(str(e))
+	return False
+
+
+#后续加入定时模块
+def beat_main_task():
+	d = register.get_all_register()
+	if d is not None:
+		for k in d:
+			crm_cfg[k] = d[k]
+			conf_logger.info('load register {}:{}'.format(k,d[k]))
+	while True:
+		#print(crm_cfg)
+		if 'proxy' in crm_cfg and beat_connect(crm_cfg['proxy']['ip'],crm_cfg['proxy']['port']) == False:
+			register.del_register('proxy')
+			conf_logger.info('del register proxy:{}'.format(crm_cfg['proxy']))
+			del crm_cfg['proxy']
+		if 'xforward' in crm_cfg and beat_connect(crm_cfg['xforward']['ip'],crm_cfg['xforward']['port']) == False:
+			register.del_register('xforward')
+			conf_logger.info('del register xforward:{}'.format(crm_cfg['xforward']))
+			del crm_cfg['xforward']
+		if 'recursion' in crm_cfg and beat_connect(crm_cfg['recursion']['ip'],crm_cfg['recursion']['port']) == False:
+			register.del_register('recursion')
+			conf_logger.info('del register recursion:{}'.format(crm_cfg['recursion']))
+			del crm_cfg['recursion']
+		time.sleep(30)
+
+
+#后续加入定时模块
+def task_main_task():
+	while True:
+		while task_queue.empty() is not True:
+			data = task_queue.get()
+			do_task(data)
+		time.sleep(1)
+
+
+def init_thread():	
+	#threading._start_new_thread(base.main_task,())
+	#threading._start_new_thread(base.handle_main_task,())
+	#threading._start_new_thread(base.beat_main_task,())
+	#threading._start_new_thread(base.task_main_task,())
+	threading._start_new_thread(main_task,())
+	threading._start_new_thread(handle_main_task,())
+	threading._start_new_thread(beat_main_task,())
+	threading._start_new_thread(task_main_task,())
 
 
 '''

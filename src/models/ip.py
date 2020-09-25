@@ -23,6 +23,16 @@ def get_ip_list(data):
 	return to_dict_list(IpList.query.filter(and_(IpList.bt==data['bt'],IpList.sbt==data['sbt'])).all())
 
 
+def ip_list_exist(data):
+	try:
+		t = IpList.query.filter(and_(IpList.bt==data['bt'],IpList.sbt==data['sbt'],IpList.ip==data['data']['ip'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加ip列表
 def add_ip_list(data):
 	try:
@@ -98,6 +108,53 @@ ip_list_methods = {
 }
 
 
+def get_rootcopy_ip_list(data):
+	try:
+		rules = IpList.query.filter(and_(IpList.bt==data['bt'],IpList.sbt==data['sbt'])).all()
+		if rules is not None and len(rules) > 0:
+			l = []
+			for i in rules:
+				l.append(i.ip)
+			return l
+	except Exception as e:
+		logger.warning(str(e))
+	return None
+
+
+def add_rootcopy_ip_list(data):
+	try:
+		for i in data['data']['ip']:
+			t = IpList.query.filter(and_(IpList.bt==data['bt'],IpList.sbt==data['sbt'],IpList.ip==i)).first()
+			if t is None:
+				t = IpList(data['bt'], data['sbt'], i)
+				db.session.add(t)
+				db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+	
+
+def delete_rootcopy_ip_list(data):
+	try:
+		for i in data['data']['ip']:
+			t = IpList.query.filter(and_(IpList.bt==data['bt'],IpList.sbt==data['sbt'],IpList.ip==i)).first()
+			if t is not None:
+				db.session.delete(t)
+		db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
+rootcopy_methods = {
+	'query': get_rootcopy_ip_list,
+	'add': add_rootcopy_ip_list,
+	'delete': delete_rootcopy_ip_list,
+	'clear': clear_ip_list
+}
+
 class SrcIpAccessControl(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	ip = db.Column(db.String(60), nullable=False)
@@ -111,6 +168,16 @@ class SrcIpAccessControl(db.Model):
 # 获取所有源ip访问控制列表
 def get_src_ip_control(data):
 	return to_dict_list(SrcIpAccessControl.query.all())
+
+
+def src_ip_control_exist(data):
+	try:
+		t = SrcIpAccessControl.query.filter_by(ip=data['data']['ip']).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改源ip访问控制列表
@@ -183,6 +250,16 @@ def get_ip_qtype_access_control(data):
 	return to_dict_list(IpQtypeAccessControl.query.all())
 
 
+def ip_qtype_access_control_exist(data):
+	try:
+		t = IpQtypeAccessControl.query.filter(and_(IpQtypeAccessControl.qtype==data['data']['qtype'],IpQtypeAccessControl.ip==data['data']['ip'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改ip qtype访问控制列表
 def modify_ip_qtype_access_control(data):
 	try:
@@ -249,6 +326,16 @@ class GrayDomainRedirectIp(db.Model):
 # 获取所有的灰色域名访问控制重定向IP
 def get_ip_weight(data):
 	return to_dict_list(GrayDomainRedirectIp.query.all())
+
+
+def ip_weight_exist(data):
+	try:
+		t = GrayDomainRedirectIp.query.filter_by(ip=data['data']['ip']).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改灰色域名访问控制重定向IP

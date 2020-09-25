@@ -7,6 +7,51 @@ from sqlalchemy import and_
 from . import db,to_dict_list,to_no_bt_dict_list,to_have_bt_dict_list
 
 
+class HandleSwitch(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	bt = db.Column(db.String(40), nullable=False)
+	sbt = db.Column(db.String(40), nullable=False)
+	switch = db.Column(db.String(20), nullable=False)
+
+	def __init__(self, bt, sbt, switch):
+		self.bt = bt
+		self.sbt = sbt
+		self.switch = switch
+
+
+def get_handle_switch(data):
+	try:
+		s = HandleSwitch.query.filter(and_(HandleSwitch.bt==data['bt'],HandleSwitch.sbt==data['sbt'])).first()
+		if s is not None:
+			return {'switch': s.switch}
+	except Exception as e:
+		logger.warning(str(e))
+	return {'switch': 'disable'}
+
+
+def put_handle_switch(data):
+	try:
+		s = HandleSwitch.query.filter(and_(HandleSwitch.bt==data['bt'],HandleSwitch.sbt==data['sbt'])).first()
+		if s is not None:
+			s.switch = data['data']['switch']
+			db.session.commit()
+		else:
+			s = HandleSwitch(data['bt'],data['sbt'],data['data']['switch'])
+			db.session.add(s)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+	return False
+
+
+handle_switch_methods = {
+	'query': get_handle_switch,
+	'add': put_handle_switch,
+	'update': put_handle_switch
+}
+
 class HandleIpGroup(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	ipgroup = db.Column(db.String(80), nullable=False)
@@ -33,6 +78,7 @@ def add_handle_ip_group(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -53,6 +99,7 @@ def del_handle_ip_group(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -67,6 +114,7 @@ def clear_handle_ip_group(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -95,15 +143,7 @@ class HandleTotalThreshold(db.Model):
 
 
 def get_all_total_meter():
-	try:
-		rules = HandleTotalThreshold.query.all()
-		l = []
-		for i in rules:
-			l.append(i.to_dict())
-		return l
-	except Exception as e:
-		logger.warning(str(e))
-	return []
+	return to_dict_list(HandleTotalThreshold.query.all())
 
 
 # 获取总限速阈值
@@ -132,6 +172,7 @@ def modify_total_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -175,6 +216,7 @@ def modify_ip_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -188,6 +230,7 @@ def del_ip_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -202,6 +245,7 @@ def clear_ip_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -246,6 +290,7 @@ def modify_handle_tag_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -258,6 +303,7 @@ def del_handle_tag_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -271,6 +317,7 @@ def clear_handle_tag_meter(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -309,6 +356,7 @@ def add_handle_ip_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -321,6 +369,7 @@ def del_handle_ip_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -334,6 +383,7 @@ def clear_handle_ip_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -371,6 +421,7 @@ def add_handle_tag_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -383,6 +434,7 @@ def del_handle_tag_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -396,6 +448,7 @@ def clear_handle_tag_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -436,6 +489,7 @@ def modify_handle_forward_server(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -449,6 +503,7 @@ def del_handle_forward_server(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -462,6 +517,7 @@ def clear_handle_forward_server(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -517,10 +573,11 @@ def get_handle_proto(data):
 			l = []
 			for i in rules:
 				l.append(i.get_dict())
-			return l
+			if len(l) > 0:
+				return l
 	except Exception as e:
 		logger.warning(str(e))
-	return []
+	return None
 
 
 def modify_handle_proto(data):
@@ -538,6 +595,7 @@ def modify_handle_proto(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -552,6 +610,7 @@ def del_handle_proto(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -565,6 +624,7 @@ def clear_handle_proto(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -601,6 +661,7 @@ def add_handle_ca(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -613,6 +674,7 @@ def del_handle_ca(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -626,6 +688,7 @@ def clear_handle_ca(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -640,24 +703,20 @@ handle_ca_methods = {
 class HandleXforce(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	handle = db.Column(db.String(200), nullable=False)
-	index = db.Column(db.String(40), nullable=False)
-	type = db.Column(db.String(400), nullable=False)
 	rcode = db.Column(db.Integer, nullable=False)
 	ttl = db.Column(db.BigInteger, nullable=False)
 	timestamp = db.Column(db.BigInteger, nullable=False)
 	values = db.Column(db.Text, nullable=False)
 
-	def __init__(self, handle, index, type, rcode, ttl, timestamp, values):
+	def __init__(self, handle, rcode, ttl, timestamp, values):
 		self.handle = handle
-		self.index = index
-		self.type = type
 		self.rcode = rcode
 		self.ttl = ttl
 		self.timestamp = timestamp
 		self.values = values
 
 	def get_dict(self):
-		return {'handle':self.handle,'index':json.loads(self.index),'type':json.loads(self.type),'rcode':self.rcode,'ttl':self.ttl,'timestamp':self.timestamp,'data':json.loads(self.data)}
+		return {'handle':self.handle,'rcode':self.rcode,'ttl':self.ttl,'timestamp':self.timestamp,'values':json.loads(self.values)}
 	def to_dict(self):
 		return {'source':'ms','id':0,'service':'handle','bt':'xforce','sbt':'rules','op':'add','data':self.get_dict()}
 
@@ -665,11 +724,10 @@ class HandleXforce(db.Model):
 def get_all_handle_xforce():
 	try:
 		rules = HandleXforce.query.all()
-		if rules is not None:
-			l = []
-			for i in rules:
-				l.append(i.to_dict())
-			return l
+		l = []
+		for i in rules:
+			l.append(i.to_dict())
+		return l
 	except Exception as e:
 		logger.warning(str(e))
 	return []
@@ -679,6 +737,7 @@ def get_all_handle_xforce():
 def get_handle_xforce(data):
 	try:
 		rules = HandleXforce.query.all()
+		l = []
 		for i in rules:
 			l.append(i.get_dict())
 		if len(l) > 0:
@@ -690,36 +749,34 @@ def get_handle_xforce(data):
 		
 def modify_handle_xforce(data):
 	try:
-		index = json.dumps(data['data']['index'])
-		types = json.dumps(data['data']['type'])
-		t = HandleXforce.query.filter(and_(HandleXforce.handle==data['data']['handle'],HandleXforce.index==index,HandleXforce.type==types)).first()
+		t = HandleXforce.query.filter_by(handle=data['data']['handle']).first()
 		if t is not None:
 			t.rcode = data['data']['rcode']
 			t.ttl = data['data']['ttl']
 			t.timestamp = data['data']['timestamp']
-			t.data = json.dumps(data['data']['values'])
+			t.values = json.dumps(data['data']['values'])
 			db.session.commit()
 		else:
-			t = HandleXforce(data['data']['handle'], index, types, data['data']['rcode'], data['data']['ttl'], data['data']['timestamp'], json.dumps(data['data']['values']))
+			t = HandleXforce(data['data']['handle'], data['data']['rcode'], data['data']['ttl'], data['data']['timestamp'], json.dumps(data['data']['values']))
 			db.session.add(t)
 			db.session.commit()
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
 def del_handle_xforce(data):
 	try:
-		index = json.dumps(data['data']['index'])
-		types = json.dumps(data['data']['type'])
-		t = HandleXforce.query.filter(and_(HandleXforce.handle==data['data']['handle'],HandleXforce.index==index,HandleXforce.type==types)).first()
+		t = HandleXforce.query.filter_by(handle=data['data']['handle']).first()
 		if t is not None:
 			db.session.delete(t)
 			db.session.commit()
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -733,6 +790,7 @@ def clear_handle_xforce(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -757,9 +815,13 @@ class HandleString(db.Model):
 		self.string = string
 	def get_qtype(self):
 		return {'qtype': self.string}
+	def get_algo(self):
+		return {'lb-algo': self.string}
 	def to_dict(self):
-		if self.sbt == 'qtyperules':
-			return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'qtype':self.string}}
+		if self.sbt == 'blackqtype':
+			return {'source':'ms','service':'handle','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'qtype':self.string}}
+		elif self.sbt == 'algorithm':
+			return {'source':'ms','service':'handle','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'lb-algo':self.string}}
 
 
 def get_all_handle_string():
@@ -780,8 +842,10 @@ def get_handle_string(data):
 		if rules is not None:
 			l = []
 			for i in rules:
-				if data['sbt'] == 'qtype':
+				if data['sbt'] == 'blackqtype':
 					l.append(i.get_qtype())
+				elif data['sbt'] == 'algorithm':
+					l.append(i.get_algo())
 			if len(l) > 0:
 				return l
 	except Exception as e:
@@ -789,25 +853,87 @@ def get_handle_string(data):
 	return None
 
 
+def get_handle_str(data):
+	if data['sbt'] == 'blackqtype':
+		return data['data']['qtype']
+	elif data['sbt'] == 'algorithm':
+		return data['data']['lb-algo']
+	return ''
+
 
 def modify_handle_string(data):
 	try:
-		t = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'],HandleString.string==data['data']['qtype'])).first()
+		data_str = get_handle_str(data)
+		t = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'],HandleString.string==data_str)).first()
 		if t is None:
-			if data['sbt'] == 'qtype':
-				t = HandleString(data['bt'], data['sbt'], data['data']['qtype'])
-				db.session.add(t)
-				db.session.commit()
+			t = HandleString(data['bt'], data['sbt'], data_str)
+			db.session.add(t)
+			db.session.commit()
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
-selfcheck_qtype_methods = {
+def modify_loadbalance_string(data):
+	try:
+		data_str = get_handle_str(data)
+		t = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'])).first()
+		if t is None:
+			t = HandleString(data['bt'], data['sbt'], data_str)
+			db.session.add(t)
+			db.session.commit()
+		else:
+			t.string = data_str
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+	return False
+
+
+def delete_handle_string(data):
+	try:
+		t = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'],HandleString.string==get_handle_str(data))).first()
+		if t is not None:
+			db.session.delete(t)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+	return False
+
+
+def clear_handle_string(data):
+	try:
+		rules = HandleString.query.filter(and_(HandleString.bt==data['bt'],HandleString.sbt==data['sbt'])).all()
+		if rules is not None and len(rules) > 0:
+			for i in rules:
+				db.session.delete(i)
+			db.session.commit()
+		return True		
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+	return None
+
+
+loadbalance_methods = {
+	'query': get_handle_string,
+	'add': modify_loadbalance_string,
+	'update': modify_loadbalance_string,
+	'delete': delete_handle_string,
+	'clear': clear_handle_string
+}
+
+handle_string_methods = {
 	'query': get_handle_string,
 	'add': modify_handle_string,
-	'update': modify_handle_string
+	'delete': delete_handle_string,
+	'clear': clear_handle_string
 }
 
 
@@ -846,7 +972,7 @@ def get_total_digit(data):
 		if rules is not None:
 			l = []
 			for i in rules:
-				if data['sbt'] == 'responsecode':
+				if data['sbt'] == 'responserules':
 					l.append(i.get_responsecode())
 			if len(l) > 0:
 				return l
@@ -855,32 +981,66 @@ def get_total_digit(data):
 	return None
 
 
+def get_handle_num(data):
+	if data['sbt'] == 'responserules':
+		return data['data']['responsecode']
+	return -1
+
 
 def modify_total_digit(data):
 	try:
-		t = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'],HandleDigit.digit==data['data']['responsecode'])).first()
+		num = get_handle_num(data)
+		t = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'],HandleDigit.digit==num)).first()
 		if t is None:
-			if data['sbt'] == 'responsecode':
-				t = HandleDigit(data['bt'], data['sbt'], data['data']['responsecode'])
-				db.session.add(t)
-				db.session.commit()
+			t = HandleDigit(data['bt'], data['sbt'], num)
+			db.session.add(t)
+			db.session.commit()
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
+	return False
+
+
+def delete_total_digit(data):
+	try:
+		num = get_handle_num(data)
+		t = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'],HandleDigit.digit==num)).first()
+		if t is not None:
+			db.session.delete(t)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+	return False
+
+
+def clear_total_digit(data):
+	try:
+		rules = HandleDigit.query.filter(and_(HandleDigit.bt==data['bt'],HandleDigit.sbt==data['sbt'])).all()
+		if rules is not None and len(rules) > 0:
+			for i in rules:
+				db.session.delete(i)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
 selfcheck_response_methods = {
 	'query': get_total_digit,
 	'add': modify_total_digit,
-	'update': modify_total_digit
+	'update': modify_total_digit,
+	'delete': delete_total_digit,
+	'clear': clear_total_digit
 }
 
 
 class HandleStub(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
-	#bt = db.Column(db.String(40), nullable=False)
-	#sbt = db.Column(db.String(40), nullable=False)
 	handle = db.Column(db.String(300), nullable=False)
 	ttl = db.Column(db.Integer, nullable=False)
 	index = db.Column(db.Integer, nullable=False)
@@ -888,8 +1048,6 @@ class HandleStub(db.Model):
 	data = db.Column(db.Text, nullable=False)
 
 	def __init__(self, handle, ttl, index, type, data):
-		#self.bt = bt
-		#self.sbt = sbt
 		self.handle = handle
 		self.ttl = ttl
 		self.index = index
@@ -915,6 +1073,7 @@ def modify_handle_stub(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -927,6 +1086,7 @@ def del_handle_stub(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -940,6 +1100,7 @@ def clear_handle_stub(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -951,19 +1112,81 @@ handle_stub_methods = {
 	'clear': clear_handle_stub
 }
 
-# HandleProto 后续添加
+
+class HandleHealth(db.Model):
+	id = db.Column(db.Integer, primary_key=True)
+	switch = db.Column(db.String(20), nullable=False)
+	cycle = db.Column(db.Integer, nullable=False)
+
+	def __init__(self, switch, cycle):
+		self.switch = switch
+		self.cycle = cycle
+
+
+def get_handle_health(data):
+	try:
+		s = HandleHealth.query.get(1)
+		if s is not None:
+			return {'switch': s.switch,'cycle':s.cycle}
+	except Exception as e:
+		logger.warning(str(e))
+	return {'switch': 'disable','cycle':1800}
+
+
+def put_handle_health(data):
+	try:
+		s = HandleHealth.query.get(1)
+		if s is not None:
+			s.switch = data['data']['switch']
+			s.cycle = data['data']['cycle']
+			db.session.commit()
+		else:
+			s = HandleHealth(data['data']['switch'],data['data']['cycle'])
+			db.session.add(s)
+			db.session.commit()
+		return True
+	except Exception as e:
+		logger.warning(str(e))
+		db.session.rollback()
+
+
+handle_health_methods = {
+	'query': get_handle_health,
+	'add': put_handle_health,
+	'update': put_handle_health,
+}
+
+
+
 def get_all_handle():
-	return to_have_bt_dict_list(HandleIpList.query.all()) + to_have_bt_dict_list(HandleTagList.query.all()) + \
-	to_have_bt_dict_list(HandleTotalThreshold.query.all()) + to_have_bt_dict_list(HandleIpThreshold.query.all()) + \
-	to_have_bt_dict_list(HandleTagThreshold.query.all()) + to_no_bt_dict_list('useripwhitelist','rules',HandleIpGroup.query.all()) + \
-	to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all()) + to_no_bt_dict_list('certificate','rules',HandleCa.query.all()) + \
-	to_have_bt_dict_list(HandleString.query.all()) + to_have_bt_dict_list(HandleDigit.query.all()) +  get_all_handle_xforce() + \
-	to_no_bt_dict_list('stub','rules',HandleStub.query().all()) + get_all_handle_proto()
+	return to_have_bt_dict_list(HandleSwitch.query.all(),'handle') + to_have_bt_dict_list(HandleIpList.query.all(),'handle') + to_have_bt_dict_list(HandleTagList.query.all(),'handle') + \
+	to_have_bt_dict_list(HandleTotalThreshold.query.all(),'handle') + to_have_bt_dict_list(HandleIpThreshold.query.all(),'handle') + \
+	to_have_bt_dict_list(HandleTagThreshold.query.all(),'handle') + to_no_bt_dict_list('useripwhitelist','rules',HandleIpGroup.query.all(),'handle') + \
+	to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all(),'handle') + to_no_bt_dict_list('certificate','rules',HandleCa.query.all(),'handle') + \
+	to_have_bt_dict_list(HandleString.query.all(),'handle') + to_have_bt_dict_list(HandleDigit.query.all(),'handle') +  get_all_handle_xforce() + \
+	to_no_bt_dict_list('stub','rules',HandleStub.query.all(),'handle') + get_all_handle_proto()
 	
 
 
 def get_all_proxy_handle():
-	return to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all()) + to_no_bt_dict_list('certificate','rules',HandleCa.query.all()) + \
-	to_have_bt_dict_list(HandleString.query.all()) + to_have_bt_dict_list(HandleDigit.query.all()) +  get_all_handle_xforce() + get_all_handle_proto()
+	no_switch = {'trusted','useripwhitelist','ipthreshold','srcipaccesscontrol'}
+	return [i for i in to_have_bt_dict_list(HandleSwitch.query.all(),'handle') if i['bt'] not in no_switch] + to_have_bt_dict_list(HandleTotalThreshold.query.all(),'handle') + \
+	to_have_bt_dict_list(HandleTagList.query.all(),'handle') + to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all(),'handle') + \
+	to_have_bt_dict_list(HandleTagThreshold.query.all(),'handle') + to_no_bt_dict_list('certificate','rules',HandleCa.query.all(),'handle') + \
+	[i for i in get_all_handle_string() if i['bt'] != 'loadbalance'] + to_have_bt_dict_list(HandleDigit.query.all(),'handle') +  get_all_handle_xforce() + get_all_handle_proto()
+
+
+def get_all_xforward_handle():
+	return [i for i in to_have_bt_dict_list(HandleSwitch.query.all(),'handle') if i['bt'] == 'selfcheck'] + \
+	to_no_bt_dict_list('backend','forwardserver',HandleForwardServer.query.all(),'handle') + [i for i in get_all_handle_string() if i['bt'] == 'selfcheck'] + \
+	to_have_bt_dict_list(HandleDigit.query.all(),'handle') +  get_all_handle_xforce() + get_all_handle_proto()
+
+
+def get_all_recursion_handle():
+	return to_no_bt_dict_list('healthdetect','config',HandleHealth.query.all(),'handle') + [i for i in get_all_handle_string() if i['bt'] == 'loadbalance'] + \
+	[i for i in to_have_bt_dict_list(HandleSwitch.query.all(),'handle') if i['bt'] == 'trusted'] + to_no_bt_dict_list('stub','rules',HandleStub.query.all(),'handle')
+
+
+
 
 

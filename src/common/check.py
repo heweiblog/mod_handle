@@ -4,14 +4,14 @@
 from dns.rdatatype import _by_text as rr_type
 import json,IPy,re
 from common.log import logger
-from models import db,view,acl,dts,bind,iptables,ip
+from models import db,view,acl,dts,bind,iptables,ip,threshold,domain
 
 
 dns_bt = ['iptables', 'dnsipfragment', 'ipfragment', 'icmpflood', 'tcpflood', 'udpflood', 'creditdname', 'ipthreshold', 'domainthreshold', 'ipdomainthreshold', 'backendthreshold',
 			'replythreshold', 'poisonprotect', 'amplificationattack', 'useripwhitelist', 'serviceipwhitelist', 'srcipaccesscontrol', 'domainaccesscontrol', 'ipdomainaccesscontrol', 
 			'domainqtypeaccesscontrol','qtypeaccesscontrol', 'ipqtypeaccesscontrol', 'graydomainaccesscontrol', 'importdnameprotect', 'spreadecho', 'nxr', 'sortlist', 'dts', 'iptrans', 
 			'acl', 'view', 'selfcheck', 'ttl', 'rrset', 'rrfilter', 'expiredactivate', 'cachedisable', 'cachesync', 'minimalresponses', 'smartupdate', 'forward', 'edns', 'stub', 'dns64', 
-			'rootconfig', 'accesscontrolanswerip']
+			'rootconfig', 'accesscontrolanswerip', 'rootcopy']
 
 dns_sbt = ['switch', 'rules', 'totalthreshold', 'ipv4totalthreshold', 'ipv6totalthreshold', 'ipthreshold', 'ipv4no53threshold', 'ipv6no53threshold','dnamethreshold', 'dnamelist', 
 			'defaultthreshold', 'updatethreshold', 'ipv4nohitthreshold','ipv6nohitthreshold', 'replythreshold','x20', 'linkage', 'maxanswerlen', 'qpsthreshold', 'odds', 'redirectip', 
@@ -20,16 +20,18 @@ dns_sbt = ['switch', 'rules', 'totalthreshold', 'ipv4totalthreshold', 'ipv6total
 			'domaindisable', 'viewimport', 'viewmapping', 'rootconfig', 'ipv4', 'ipv6']
 
 handle_bt = ['useripwhitelist', 'ipthreshold', 'handlethreshold', 'srcipaccesscontrol', 'handleaccesscontrol', 'backend', 'businessservice', 'businessproto', 'certificate', 'selfcheck', 
-			'xforce', 'cachesmartupdate', 'cacheprefetch', 'backendmeter', 'stub'] 
+			'xforce', 'cachesmartupdate', 'cacheprefetch', 'backendmeter', 'stub', 'healthdetect', 'loadbalance', 'trusted'] 
 
-handle_sbt = ['switch', 'rules', 'blackqtype', 'responserules','forwardserver']
+handle_sbt = ['switch', 'rules', 'blackqtype', 'responserules','forwardserver', 'config', 'algorithm']
 
+
+DEFAULT = 'default'
 
 #所有请求类型
 qtypes = json.loads(json.dumps(rr_type).lower())
 
 
-def switch_check(op,data):
+def switch_check(op,data,content):
 	if op == 'update' or op == 'add':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -52,7 +54,7 @@ def is_ip(address):
 	return False
 
 
-def iptables_rules_check(op,data):
+def iptables_rules_check(op,data,content):
 	proto = ['icmp', 'udp', 'tcp']
 	#if op == 'add' or op == 'update' or op == 'delete':
 	if op == 'add' or op == 'delete':
@@ -86,7 +88,7 @@ def iptables_rules_check(op,data):
 	return 'unsupported operations'
 
 
-def threshold_check(op,data):
+def threshold_check(op,data,content):
 	if op == 'update' or op == 'add':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -100,7 +102,19 @@ def threshold_check(op,data):
 	return 'unsupported operations'
 
 
-def ip_threshold_check(op,data):
+def db_check(op,exist,content):
+	if exist:
+		if op == 'add':
+			return 'done'
+	else:
+		if op == 'delete':
+			return 'done'
+		elif op == 'update':
+			content['op'] = 'add'
+	return 'true'	
+
+
+def ip_threshold_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -108,7 +122,7 @@ def ip_threshold_check(op,data):
 			return 'ip {} format error'.format(data['ip'])
 		if data['threshold'] < 0 or data['threshold'] > 0xffffffff:
 			return 'threshold value range error'
-		return 'true'	
+		return db_check(op,threshold.ip_threshold_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
@@ -116,7 +130,7 @@ def ip_threshold_check(op,data):
 
 def is_name_80(t):
 	if len(t) > 0:
-		r = re.match(r'[0-9a-zA-Zd_d-]{0,80}',t)
+		r = re.match(r'[0-9a-zA-Zd_d-d.]{0,80}',t)
 		if r is not None and r.span()[1] == len(t):
 			return True
 	return False
@@ -156,7 +170,7 @@ def is_domain(domain):
 	return False
 
 
-def dname_threshold_check(op,data):
+def dname_threshold_check(op,data,content):
 	if op == 'add' or op == 'update':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -164,25 +178,25 @@ def dname_threshold_check(op,data):
 			return 'domain {} format error'.format(data['domain'])
 		if data['threshold'] < 0 or data['threshold'] > 0xffffffff:
 			return 'threshold value range error'
-		return 'true'	
+		return db_check(op,threshold.domain_threshold_exist(content),content)
 	elif op == 'query' or op == 'clear' or op == 'delete':
 		return 'true'
 	return 'unsupported operations'
 	
 
-def domain_check(op,data):
+def domain_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if is_domain(data['dname']) is not True:	
 			return 'dname {} format error'.format(data['dname'])
-		return 'true'	
+		return db_check(op,domain.credit_dname_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def ip_dname_threshold_check(op,data):
+def ip_dname_threshold_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -192,13 +206,13 @@ def ip_dname_threshold_check(op,data):
 			return 'domain {} format error'.format(data['domain'])
 		if data['threshold'] < 0 or data['threshold'] > 0xffffffff:
 			return 'threshold value range error'
-		return 'true'	
+		return db_check(op,threshold.ip_domain_threshold_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def answer_len_check(op,data):
+def answer_len_check(op,data,content):
 	if op == 'update' or op == 'add':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -219,19 +233,21 @@ def action_check(action):
 	return 'true'	
 
 
-def ip_control_check(op,data):
+def ip_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
 		if '/' not in data['ip'] or is_ip(data['ip']) is not True:
 			return 'ip {} format error'.format(data['ip'])
-		return action_check(data['action'])
+		if action_check(data['action']) != 'true':
+			return 'action error'
+		return db_check(op,ip.src_ip_control_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 				
 
-def domain_control_check(op,data):
+def domain_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -244,7 +260,7 @@ def domain_control_check(op,data):
 				
 
 
-def ip_domain_control_check(op,data):
+def ip_domain_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -264,7 +280,7 @@ def is_qtype(q):
 	return False
 
 
-def domain_qtype_control_check(op,data):
+def domain_qtype_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -278,7 +294,7 @@ def domain_qtype_control_check(op,data):
 	return 'unsupported operations'
 
 
-def qtype_control_check(op,data):
+def qtype_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -290,7 +306,7 @@ def qtype_control_check(op,data):
 	return 'unsupported operations'
 
 
-def ip_qtype_control_check(op,data):
+def ip_qtype_control_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -304,7 +320,7 @@ def ip_qtype_control_check(op,data):
 	return 'unsupported operations'
 
 
-def gray_domain_control_check(op,data):
+def gray_domain_control_check(op,data,content):
 	actions = ['drop', 'refused', 'nxdomain', 'noanswer']
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
@@ -319,7 +335,7 @@ def gray_domain_control_check(op,data):
 	return 'unsupported operations'
 
 
-def odds_check(op,data):
+def odds_check(op,data,content):
 	if op == 'update' or op == 'add':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -333,7 +349,7 @@ def odds_check(op,data):
 	return 'unsupported operations'
 
 
-def redirect_ip_check(op,data):
+def redirect_ip_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -372,7 +388,7 @@ def is_answer(qtype,data):
 	return False
 
 
-def dname_protect_check(op,data):
+def dname_protect_check(op,data,content):
 	action = ['alarm', 'delete', 'backup']
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
@@ -393,31 +409,31 @@ def dname_protect_check(op,data):
 	return 'unsupported operations'
 
 
-def ip_check(op,data):
+def ip_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if '/' in data['ip'] or is_ip(data['ip']) is not True:
 			return 'ip {} format error'.format(data['ip'])
-		return 'true'
+		return db_check(op,ip.ip_list_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def ip_sec_check(op,data):
+def ip_sec_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if '/' not in data['ip'] or is_ip(data['ip']) is not True:
 			return 'ip {} format error'.format(data['ip'])
-		return 'true'
+		return db_check(op,ip.ip_list_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def ipv4_check(op,data):
+def ipv4_check(op,data,content):
 	if op == 'update':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -429,7 +445,7 @@ def ipv4_check(op,data):
 	return 'unsupported operations'
 
 
-def ipv6_check(op,data):
+def ipv6_check(op,data,content):
 	if op == 'update':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -441,24 +457,26 @@ def ipv6_check(op,data):
 	return 'unsupported operations'
 
 
-def dname_check(op,data):
+def dname_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if is_domain(data['domain']) is not True:
 			return 'domain {} format error'.format(data['domain'])
-		return 'true'
+		return db_check(op,domain.domain_list_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def view_switch_check(op,data):
+def view_switch_check(op,data,content):
 	if op == 'update':
 		if len(data) != 2:
 			return 'data feild num error'
-		if view.view_exist(data['view']) is not True:
-			return 'view not exist'
+		#if view.view_exist(data['view']) is not True:
+			#return 'view not exist'
+		if data['view'] != DEFAULT:
+			return 'view must default'
 		if data['switch'] != 'enable' and data['switch'] != 'disable':
 			return 'switch format error'
 		return 'true'
@@ -467,7 +485,7 @@ def view_switch_check(op,data):
 	return 'unsupported operations'
 
 
-def view_redirect_ip_check(op,data):
+def view_redirect_ip_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -478,16 +496,18 @@ def view_redirect_ip_check(op,data):
 		if op == 'delete':
 			if len(data['view']) == 0:
 				return 'view format error'
-		else:
-			if view.view_exist(data['view']) is not True:
-				return 'view not exist'
+		if data['view'] != DEFAULT:
+			return 'view must default'
+		#else:
+			#if view.view_exist(data['view']) is not True:
+				#return 'view not exist'
 		return 'true'
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def sortlist_rules_check(op,data):
+def sortlist_rules_check(op,data,content):
 	if op == 'add' or op == 'update':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -511,7 +531,7 @@ def sortlist_rules_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_src_ip_group_check(op,data):
+def dts_src_ip_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -540,7 +560,7 @@ def dts_src_ip_group_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_dst_ip_group_check(op,data):
+def dts_dst_ip_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -568,7 +588,7 @@ def dts_dst_ip_group_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_domain_group_check(op,data):
+def dts_domain_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -596,7 +616,7 @@ def dts_domain_group_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_qtype_check(op,data):
+def dts_qtype_check(op,data,content):
 	if op == 'add' or op == 'delete': 
 		if len(data) != 1:
 			return 'data feild num error'
@@ -616,7 +636,7 @@ def is_tld(t):
 	return False
 
 
-def dts_tld_check(op,data):
+def dts_tld_check(op,data,content):
 	if op == 'add' or op == 'delete': 
 		if len(data) != 1:
 			return 'data feild num error'
@@ -628,7 +648,7 @@ def dts_tld_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_forward_server_check(op,data):
+def dts_forward_server_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -644,7 +664,7 @@ def dts_forward_server_check(op,data):
 	return 'unsupported operations'
 
 
-def dts_filter_check(op,data):
+def dts_filter_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 9:
 			return 'data feild num error'
@@ -684,7 +704,7 @@ def dts_filter_check(op,data):
 	return 'unsupported operations'
 
 
-def acl_src_ip_group_check(op,data):
+def acl_src_ip_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -713,7 +733,7 @@ def acl_src_ip_group_check(op,data):
 	return 'unsupported operations'
 
 
-def acl_dst_ip_group_check(op,data):
+def acl_dst_ip_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -741,7 +761,7 @@ def acl_dst_ip_group_check(op,data):
 	return 'unsupported operations'
 
 
-def acl_domain_group_check(op,data):
+def acl_domain_group_check(op,data,content):
 	if op == 'add': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -769,7 +789,7 @@ def acl_domain_group_check(op,data):
 	return 'unsupported operations'
 
 
-def view_check(op,data):
+def view_check(op,data,content):
 	if op == 'add':
 		if len(data) != 5:
 			return 'data feild num error'
@@ -795,7 +815,7 @@ def view_check(op,data):
 	return 'unsupported operations'
 
 
-def cache_qtype_check(op,data):
+def cache_qtype_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -813,7 +833,7 @@ def cache_qtype_check(op,data):
 	return 'unsupported operations'
 
 
-def ttl_rules_check(op,data):
+def ttl_rules_check(op,data,content):
 	if op == 'add' or op == 'update' or op =='delete':
 		if len(data) != 4:
 			return 'data feild num error'
@@ -821,19 +841,15 @@ def ttl_rules_check(op,data):
 			return 'domain {} format error'.format(data['domain'])
 		if data['minttl'] < 1 or data['minttl'] > 604800 or data['maxttl'] < 1 or data['maxttl'] > 604800 or data['maxttl'] < data['minttl']:
 			return 'ttl value range error'
-		if op == 'delete':
-			if len(data['view']) == 0:
-				return 'view fommat error'
-		else:
-			if view.view_exist(data['view']) is not True:
-				return 'view not exist'
-		return 'true'
+		if data['view'] != DEFAULT:
+			return 'view must default'
+		return db_check(op,view.ttl_exist(content),content)
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def rrset_rules_check(op,data):
+def rrset_rules_check(op,data,content):
 	if op == 'add' or op == 'delete' or op == 'update':
 		if len(data) != 6:
 			return 'data feild num error'
@@ -861,21 +877,21 @@ def rrset_rules_check(op,data):
 	return 'unsupported operations'
 
 
-def rrset_view_ip_check(op,data):
+def rrset_view_ip_check(op,data,content):
 	if op == 'add':
 		if len(data) != 2:
 			return 'data feild num error'
 		if '/' in data['ip'] or is_ip(data['ip']) is not True:
 			return 'ip {} format error'.format(data['ip'])
-		if view.view_exist(data['view']) is not True:
-			return 'view not exist'
+		#if view.view_exist(data['view']) is not True:
+			#return 'view not exist'
 		return 'true'
 	elif op == 'query' or op == 'clear' or op == 'delete':
 		return 'true'
 	return 'unsupported operations'
 
 
-def view_ip_check(op,data):
+def view_ip_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -893,7 +909,7 @@ def view_ip_check(op,data):
 	return 'unsupported operations'
 
 
-def rrfilter_rules_check(op,data):
+def rrfilter_rules_check(op,data,content):
 	if op == 'add' or op == 'delete' or op == 'update':
 		if len(data) != 4:
 			return 'data feild num error'
@@ -916,19 +932,8 @@ def rrfilter_rules_check(op,data):
 
 
 
-def dns_domain_check(op,data):
-	if op == 'add' or op == 'delete':
-		if len(data) != 1:
-			return 'data feild num error'
-		if is_domain(data['domain']) is not True:	
-			return 'domain {} format error'.format(data['domain'])
-		return 'true'	
-	elif op == 'query' or op == 'clear':
-		return 'true'
-	return 'unsupported operations'
 
-
-def view_domain_check(op,data):
+def view_domain_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -946,7 +951,7 @@ def view_domain_check(op,data):
 	return 'unsupported operations'
 
 
-def forward_server_check(op,data):
+def forward_server_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 4:
 			return 'data feild num error'
@@ -974,7 +979,7 @@ def forward_server_check(op,data):
 	return 'unsupported operations'
 
 
-def forward_rules_check(op,data):
+def forward_rules_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
@@ -1001,7 +1006,7 @@ def forward_rules_check(op,data):
 
 
 
-def stub_rules_check(op,data):
+def stub_rules_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
@@ -1026,7 +1031,7 @@ def stub_rules_check(op,data):
 
 
 
-def dns64_rules_check(op,data):
+def dns64_rules_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 3:
 			return 'data feild num error'
@@ -1046,6 +1051,16 @@ def dns64_rules_check(op,data):
 	return 'unsupported operations'
 
 
+def rootcopy_rules_check(op,data,content):
+	if op == 'add' or op == 'delete':
+		if len(data) != 1:
+			return 'data feild num error'
+		if is_ip_list(data['ip']) == False:
+			return 'ip format error'
+		return 'true'
+	elif op == 'query' or op == 'clear':
+		return 'true'
+	return 'unsupported operations'
 
 
 dns_check_methods = {
@@ -1117,7 +1132,8 @@ dns_check_methods = {
 	},
 	'useripwhitelist': {
 		'switch': switch_check,
-		'rules': ip_check
+		'rules': ip_sec_check
+		#'rules': ip_check
 	},
 	'serviceipwhitelist': {
 		'switch': switch_check,
@@ -1226,8 +1242,8 @@ dns_check_methods = {
 		'viewdisable': view_switch_check,
 		'srcipdisable': ip_sec_check,
 		'dstipdisable': ip_sec_check,
-		'domaindisable': dns_domain_check,
-		'domainblacklist': dns_domain_check
+		'domaindisable': dname_check,
+		'domainblacklist': dname_check
 	},
 	'cachesync': {
 		'switch': switch_check
@@ -1260,6 +1276,9 @@ dns_check_methods = {
 	},
 	'rootconfig': {
 		'rootconfig': stub_rules_check
+	},
+	'rootcopy': {
+		'rules': rootcopy_rules_check
 	}
 }
 
@@ -1269,7 +1288,7 @@ dns_check_methods = {
 
 #以下为handle数据校验
 
-def handle_ip_group_check(op,data):
+def handle_ip_group_check(op,data,content):
 	if op == 'add' or op == 'delete': 
 		if len(data) != 2:
 			return 'data feild num error'
@@ -1283,7 +1302,7 @@ def handle_ip_group_check(op,data):
 	return 'unsupported operations'
 
 
-def handle_ip_threshold_check(op,data):
+def handle_ip_threshold_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -1306,7 +1325,7 @@ def is_handle_tag(tag):
 	return True
 
 
-def handle_meter_check(op,data):
+def handle_meter_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -1320,7 +1339,7 @@ def handle_meter_check(op,data):
 	return 'unsupported operations'
 
 
-def handle_tag_check(op,data):
+def handle_tag_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -1339,7 +1358,7 @@ def is_handle_proto(proto):
 	return False
 
 
-def handle_forward_check(op,data):
+def handle_forward_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 4:
 			return 'data feild num error'
@@ -1364,7 +1383,7 @@ def is_ip_list(l):
 	return True
 
 
-def handle_proto_check(op,data):
+def handle_proto_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
@@ -1393,7 +1412,7 @@ def is_ca(ca):
 	return False
 
 
-def handle_cert_check(op,data):
+def handle_cert_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 2:
 			return 'data feild num error'
@@ -1407,9 +1426,9 @@ def handle_cert_check(op,data):
 	return 'unsupported operations'
 
 
-def handle_xforce_check(op,data):
-	if op == 'add' or op == 'update' or op == 'delete':
-		if len(data) != 7:
+def handle_xforce_check(op,data,content):
+	if op == 'add' or op == 'update':
+		if len(data) != 5:
 			return 'data feild num error'
 		if is_handle_tag(data['handle']) is False:
 			return 'handle tag {} format error'.format(data['handle'])
@@ -1417,28 +1436,22 @@ def handle_xforce_check(op,data):
 			return 'rcode value range error'
 		if data['ttl'] < 1 or data['ttl'] > 0xffffffff:
 			return 'ttl value range error'
-		if data['timestamp'] < 1 or data['timestamp'] > 0xffffffff:
+		if data['timestamp'] < 1:
 			return 'timestamp value range error'
-		if len(data['index']) > 0 and len(data['index']) <= 16:
-			for i in data['index']:
-				if i < 1 or i > 0xffffffff:
-					return 'index value range error'
-		if len(data['type']) > 0:
-			for i in data['type']:
-				if len(i) == 0 or len(i) > 20:
-					return 'type value error'
-		if(len(data['handle']) + len(data['index']) * 4 + len(data['type']) * 4 + 12) > 464:
-			return 'handle_len + index_len*4 + type_len*4 must <= 464'
 		#可能需要根据handle type校验value
 		if len(data['values']) == 0:
 			return 'data error'
-		return 'true'	
+		return 'true'
+	elif op == 'delete':
+		if is_handle_tag(data['handle']) is False:
+			return 'handle tag {} format error'.format(data['handle'])
+		return 'true'
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def handle_stub_check(op,data):
+def handle_stub_check(op,data,content):
 	if op == 'add' or op == 'update' or op == 'delete':
 		if len(data) != 5:
 			return 'data feild num error'
@@ -1459,29 +1472,59 @@ def handle_stub_check(op,data):
 	return 'unsupported operations'
 
 
-def selfcheck_qtype_check(op,data):
+def handle_health_check(op,data,content):
+	if op == 'update' or op == 'add':
+		if len(data) != 2:
+			return 'data feild num error'
+		if data['switch'] != 'enable' and data['switch'] != 'disable':
+			return 'switch format error'
+		if data['cycle'] < 60 or data['cycle'] > 3600:
+			return 'cycle value range error'
+		return 'true'	
+	elif op == 'delete':
+		return 'done'	
+	elif op == 'query':
+		return 'true'	
+	return 'unsupported operations'
+
+
+def loadbalance_check(op,data,content):
+	if op == 'add' or op == 'delete':
+		if len(data) != 1:
+			return 'data feild num error'
+		if len(data['lb-algo']) == 0:
+			return 'lb-algo error'
+		return 'true'	
+	elif op == 'query' or op == 'clear':
+		return 'true'
+	return 'unsupported operations'
+
+
+def selfcheck_qtype_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if len(data['qtype']) == 0 or len(data['qtype']) > 20:
 			return 'qtype error'
+		return 'true'
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def selfcheck_response_check(op,data):
+def selfcheck_response_check(op,data,content):
 	if op == 'add' or op == 'delete':
 		if len(data) != 1:
 			return 'data feild num error'
 		if data['responsecode'] < 1 or data['responsecode'] > 0xffffffff:
 			return 'responsecode value range error'
+		return 'true'
 	elif op == 'query' or op == 'clear':
 		return 'true'
 	return 'unsupported operations'
 
 
-def meter_check(op,data):
+def meter_check(op,data,content):
 	if op == 'update' or op == 'add':
 		if len(data) != 1:
 			return 'data feild num error'
@@ -1540,6 +1583,7 @@ handle_check_methods = {
 		'rules': handle_tag_check
 	},
 	'selfcheck': {
+		'switch': switch_check,
 		'blackqtype': selfcheck_qtype_check,
 		'responserules': selfcheck_response_check
 	},
@@ -1549,6 +1593,15 @@ handle_check_methods = {
 	},
 	'stub': {
 		'rules': handle_stub_check 
+	},
+	'healthdetect':{
+		'config': handle_health_check
+	},
+	'loadbalance':{
+		'algorithm': loadbalance_check
+	},
+	'trusted':{
+		'switch': switch_check
 	}
 }
 
@@ -1591,12 +1644,12 @@ def check_data(data,method):
 				return 'bt error'
 			if data['sbt'] not in dns_sbt:
 				return 'sbt error'
-			return dns_check_methods[data['bt']][data['sbt']](data['op'],data['data'])
+			return dns_check_methods[data['bt']][data['sbt']](data['op'],data['data'],data)
 		if data['bt'] not in handle_bt:
 			return 'handle bt error'
 		if data['sbt'] not in handle_sbt:
 			return 'handle sbt error'
-		return handle_check_methods[data['bt']][data['sbt']](data['op'],data['data'])
+		return handle_check_methods[data['bt']][data['sbt']](data['op'],data['data'],data)
 	except Exception as e:
 		logger.error(str(e))
 	return 'unknown error'	

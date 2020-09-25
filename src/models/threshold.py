@@ -24,10 +24,10 @@ class TotalThreshold(db.Model):
 		return {'odds': self.threshold}
 	def to_dict(self):
 		if self.sbt == 'maxanswerlen':
-			return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'maxLen':self.threshold}}
+			return {'source':'ms','service':'dns','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'maxLen':self.threshold}}
 		elif self.sbt == 'odds':
-			return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'odds':self.threshold}}
-		return {'source':'ms','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'threshold':self.threshold}}
+			return {'source':'ms','service':'dns','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'odds':self.threshold}}
+		return {'source':'ms','service':'dns','id':0,'bt':self.bt,'sbt':self.sbt,'op':'update','data':{'threshold':self.threshold}}
 
 
 def get_all_total_threshold():
@@ -117,6 +117,16 @@ def get_ip_threshold(data):
 	return to_dict_list(IpThreshold.query.filter(and_(IpThreshold.bt==data['bt'],IpThreshold.sbt==data['sbt'])).all())
 
 
+def ip_threshold_exist(data):
+	try:
+		t = IpThreshold.query.filter(and_(IpThreshold.bt==data['bt'],IpThreshold.sbt==data['sbt'],IpThreshold.ip==data['data']['ip'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改ip限速策略
 def modify_ip_threshold(data):
 	try:
@@ -190,6 +200,16 @@ def get_domain_threshold(data):
 	return to_dict_list(DomainThreshold.query.filter(and_(DomainThreshold.bt==data['bt'],DomainThreshold.sbt==data['sbt'])).all())
 
 
+def domain_threshold_exist(data):
+	try:
+		t = DomainThreshold.query.filter(and_(DomainThreshold.bt==data['bt'],DomainThreshold.sbt==data['sbt'],DomainThreshold.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
+
+
 # 添加/修改domain限速策略
 def modify_domain_threshold(data):
 	try:
@@ -258,6 +278,16 @@ class IpDomainThreshold(db.Model):
 # 获取所有的 ip domain 限速策略
 def get_ip_domain_threshold(data):
 	return to_dict_list(IpDomainThreshold.query.all())
+
+
+def ip_domain_threshold_exist(data):
+	try:
+		t = IpDomainThreshold.query.filter(and_(IpDomainThreshold.ip==data['data']['ip'],IpDomainThreshold.domain==data['data']['domain'])).first()
+		if t is not None:
+			return True
+	except Exception as e:
+		logger.warning(str(e))
+	return False
 
 
 # 添加/修改 ip domain 限速策略

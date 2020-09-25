@@ -53,52 +53,6 @@ switch_methods = {
 }
 
 
-class HandleSwitch(db.Model):
-	id = db.Column(db.Integer, primary_key=True)
-	bt = db.Column(db.String(40), nullable=False)
-	sbt = db.Column(db.String(40), nullable=False)
-	switch = db.Column(db.String(20), nullable=False)
-
-	def __init__(self, bt, sbt, switch):
-		self.bt = bt
-		self.sbt = sbt
-		self.switch = switch
-
-
-# 获取开关
-def get_handle_switch(data):
-	try:
-		s = HandleSwitch.query.filter(and_(HandleSwitch.bt==data['bt'],HandleSwitch.sbt==data['sbt'])).first()
-		if s is not None:
-			return {'switch': s.switch}
-	except Exception as e:
-		logger.warning(str(e))
-	return {'switch': 'disable'}
-
-
-# 修改开关
-def put_handle_switch(data):
-	try:
-		s = HandleSwitch.query.filter(and_(HandleSwitch.bt==data['bt'],HandleSwitch.sbt==data['sbt'])).first()
-		if s is not None:
-			s.switch = data['data']['switch']
-			db.session.commit()
-		else:
-			s = HandleSwitch(data['bt'],data['sbt'],data['data']['switch'])
-			db.session.add(s)
-			db.session.commit()
-		return True
-	except Exception as e:
-		logger.warning(str(e))
-	return False
-
-
-handle_switch_methods = {
-	'query': get_handle_switch,
-	'update': put_handle_switch
-}
-
-
 class ViewSwitch(db.Model):
 	id = db.Column(db.Integer, primary_key=True)
 	bt = db.Column(db.String(40), nullable=False)

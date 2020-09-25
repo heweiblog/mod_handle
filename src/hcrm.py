@@ -44,7 +44,6 @@ def handle_get_request():
 def handle_post_request():
 	try:
 		data = data_check(request.get_json())
-		print(data)
 		if data is not None:
 			base.handle_data(data,request.method)
 		else:
@@ -112,18 +111,15 @@ def handle_add_download_request():
 
 
 # 全量传输
-@app.route('/api/v1.0/internal/all-configs', methods=['GET'])
+@app.route('/api/v1.0/internal/all-configs', methods=['POST'])
 def handle_all_download_request():
-	source = request.args.get('source')
-	if source == 'ms':
-		return {'contents':base.get_all_conf()}
-	elif source == 'proxy' or source == 'xforward':
-		return {'contents':base.get_all_proxy_conf()}
-	elif source == 'recursion':
-		return {'contents':base.get_all_handle_conf()}
-	elif source == 'ybind':
-		return {'contents':base.get_all_conf()}
-	return {'rcode': 1, 'description': 'source parameter error cannot be handled'}
+	try:
+		source = request.args.get('source')
+		data = request.get_json()
+		return base.handle_register(source,data,request.remote_addr)
+	except Exception as e:
+		logger.error(str(e))
+	return {'rcode': 1, 'description': 'source parameter error or post data error cannot be handled'}
 
 
 @app.route('/post', methods=['POST','GET','PUT','DELETE'])
@@ -141,15 +137,14 @@ def show():
 def test_task():
 	data = request.get_json()
 	if data['contents'][0]['tasktype'] == 'cachequery':
-		return jsonify({'status':'success','msg':{'index':12,'type':'hs_site','ttl':86400,'timestamp':time.strftime('%Y-%m-%d %H:%M:%S'),"data":{'format':'string','value':'hdladmin@cnri.reston.va.us'}}})
+		return jsonify({'status':'success','msg':{'udp':{},'http':{},'tcp':{}}})
 	return jsonify({'status':'success','msg':''})
 
 
 @click.command(cls=DaemonCLI, daemon_params={'pidfile': '/var/hcrm/hcrm.pid'})
 @click.option('-v',help='Show version and exit')
 def main():
-	threading._start_new_thread(base.main_task,())
-	threading._start_new_thread(base.handle_main_task,())
+	base.init_thread()
 	logger.info('hcrm start listen on {}:{}'.format(crm_cfg['net']['ip'],crm_cfg['net']['port']))
 	app.run(host=crm_cfg['net']['ip'],port=int(crm_cfg['net']['port']),debug=False)
 
@@ -157,7 +152,7 @@ def main():
 if __name__ == '__main__':
 	if len(sys.argv) == 2 and (sys.argv[1] == '-v' or sys.argv[1] == 'version'):
 		#print(version)
-		print('1.0.4')
+		print('1.0.11')
 		sys.exit(0)
 	main()
 

@@ -36,7 +36,7 @@ def to_dict_list(rules):
 	return None
 
 
-def to_have_bt_dict_list(rules):
+def to_have_bt_dict_list(rules,service='dns'):
 	try:
 		l = []
 		for i in rules:
@@ -46,7 +46,7 @@ def to_have_bt_dict_list(rules):
 			del data['id']
 			del data['bt']
 			del data['sbt']
-			content = {'source':'ms','id':0,'bt':bt,'sbt':sbt,'op':'add','data':data}
+			content = {'source':'ms','service':service,'id':0,'bt':bt,'sbt':sbt,'op':'add','data':data}
 			l.append(content)
 		return l
 	except Exception as e:
@@ -54,13 +54,13 @@ def to_have_bt_dict_list(rules):
 	return []
 
 
-def to_no_bt_dict_list(bt,sbt,rules):
+def to_no_bt_dict_list(bt,sbt,rules,service='dns'):
 	try:
 		l = []
 		for i in rules:
 			data = {c.name: getattr(i, c.name) for c in i.__table__.columns}
 			del data['id']
-			content = {'source':'ms','id':0,'bt':bt,'sbt':sbt,'op':'add','data':data}
+			content = {'source':'ms','service':service,'id':0,'bt':bt,'sbt':sbt,'op':'add','data':data}
 			l.append(content)
 		return l
 	except Exception as e:

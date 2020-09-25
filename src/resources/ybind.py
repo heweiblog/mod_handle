@@ -146,6 +146,20 @@ def stub_map(data):
 		return 'delete',url,None
 
 
+def rootcopy_map(data):
+	if data['op'] == 'add':
+		url = 'http://{}:{}/api/ybind/v1.0/static-stub-zone?name=.&view=default'.format(crm_cfg['ybind']['ip'],crm_cfg['ybind']['port'])
+		y_data = {'type':'static-stub', 'server-addresses': data['data']['ip']}
+		return 'post',url,y_data
+	elif data['op'] == 'delete':
+		url = 'http://{}:{}/api/ybind/v1.0/static-stub-zone?name=.&view=default'.format(crm_cfg['ybind']['ip'],crm_cfg['ybind']['port'])
+		return 'delete',url,None
+	elif data['op'] == 'clear': 
+		# 现有接口需要发多次，后续是否加类似以下接口
+		url = 'http://{}:{}/api/ybind/v1.0/static-stub-zone'.format(crm_cfg['ybind']['ip'],crm_cfg['ybind']['port'])
+		return 'delete',url,None
+
+
 def root_conf_map(data):
 	if data['op'] == 'add' or data['op'] == 'update':
 		#url = 'http://{}:{}/api/ybind/v1.0/hint-zone?name={}&view={}'.format(crm_cfg['ybind']['ip'],crm_cfg['ybind']['port'],data['data']['domain'],data['data']['view'])
@@ -190,6 +204,9 @@ ybind_map = {
 	},
 	'stub': {
 		'rules': stub_map
+	},
+	'rootcopy': {
+		'rules': rootcopy_map
 	},
 	'rootconfig': {
 		'rootconfig': root_conf_map

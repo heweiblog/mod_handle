@@ -12,15 +12,17 @@ class Oplog(db.Model):
 	bt = db.Column(db.String(40), nullable=False)
 	sbt = db.Column(db.String(40), nullable=False)
 	id = db.Column(db.BigInteger, nullable=False)
+	service = db.Column(db.String(10), nullable=False)
 	source = db.Column(db.String(10), nullable=False)
 	status = db.Column(db.String(10), nullable=False)
 	reason = db.Column(db.String(200))
 	data = db.Column(db.Text, nullable=False)
-	def __init__(self, action, bt, sbt, id, source, status, reason, data):
+	def __init__(self, action, bt, sbt, id, service, source, status, reason, data):
 		self.action = action
 		self.bt = bt
 		self.sbt = sbt
 		self.id = id
+		self.service = service
 		self.source = source
 		self.status = status
 		self.reason = reason[:200] if len(reason) > 200 else reason
@@ -33,6 +35,7 @@ class Oplog(db.Model):
 			'sbt': self.sbt,
 			'vid': self.vid,
 			'id': self.id,
+			'service': self.service,
 			'source': self.source,
 			'status': self.status,
 			'reason': self.reason,
@@ -74,7 +77,7 @@ def id_check(source_id,source):
 
 def add_oplog(data,status,reason):
 	#o = Oplog(data['op'], data['bt'], data['sbt'], data['id'], data['source'], status, reason, data['data'])
-	o = Oplog(data['op'], data['bt'], data['sbt'], data['id'] if data['source'] == 'ms' else 0, data['source'], status, reason, data['data'])
+	o = Oplog(data['op'], data['bt'], data['sbt'], data['id'] if data['source'] == 'ms' else 0, data['service'], data['source'], status, reason, data['data'])
 	try:
 		db.session.add(o)
 		db.session.commit()
@@ -84,7 +87,7 @@ def add_oplog(data,status,reason):
 
 
 def batch_add_oplog(data,status,reason):
-	o = Oplog(data['op'], data['bt'], data['sbt'], data['id'], data['source'], status, reason, data['data'])
+	o = Oplog(data['op'], data['bt'], data['sbt'], data['id'], data['service'], data['source'], status, reason, data['data'])
 	try:
 		db.session.add(o)
 		db.session.commit()

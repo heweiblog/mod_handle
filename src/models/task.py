@@ -20,12 +20,12 @@ class TaskList(db.Model):
 	def __init__(self, type, data):
 		self.rcode = 0
 		self.type = type
-		self.status = 'Executing'
+		self.status = 'executing'
 		self.start = time.strftime('%Y-%m-%d %H:%M:%S')
 		self.end = ''
-		self.description = 'Executing'
+		self.description = 'executing'
 		self.data = data
-		self.result = ''
+		self.result = json.dumps('')
 
 	def get_dict(self):
 		return {'description': self.description, 'rcode':self.rcode, 'taskid':self.id, 'tasktype':self.type,\
@@ -47,6 +47,15 @@ def add_task_list(data):
 		data_str = json.dumps(data['data'])
 		t = TaskList.query.filter(and_(TaskList.type==data['tasktype'],TaskList.data==data_str)).first()
 		if t is not None:
+			if t.status == 'executing':
+				return 0
+			t.rcode = 0
+			t.status = 'executing'
+			t.start = time.strftime('%Y-%m-%d %H:%M:%S')
+			t.end = ''
+			t.description = 'executing'
+			t.result = json.dumps('')
+			db.session.commit()
 			return t.id
 		else:
 			t = TaskList(data['tasktype'], data_str)
@@ -57,12 +66,16 @@ def add_task_list(data):
 				return t.id
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return 0
 
 
 def update_task_list(task_id,data):
 	try:
+		print(task_id,'db',data)
 		t = TaskList.query.get(task_id)
+		a = TaskList.query.all()
+		print(t,a)
 		if t is not None:
 			t.rcode = data['rcode']
 			t.description = data['description']
@@ -73,6 +86,7 @@ def update_task_list(task_id,data):
 			return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -85,6 +99,7 @@ def del_task_list(task_id):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
@@ -98,6 +113,7 @@ def clear_task_list(data):
 		return True
 	except Exception as e:
 		logger.warning(str(e))
+		db.session.rollback()
 	return False
 
 
